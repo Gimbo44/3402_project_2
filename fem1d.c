@@ -195,10 +195,15 @@ int main ( int argc, char *argv[]  )
      * Project Comments
      * ==========================================================================
      * 28/10/2015
-     * Below is just some generic
+     * Below is just some generic MPI initializing statements
      */
+    int  commsize, taskid, len;
+    char hostname[MPI_MAX_PROCESSOR_NAME];
+    int  partner, message;
+    MPI_Status status;
     MPI_Init( &argc, &argv );
-
+    MPI_Comm_size(MPI_COMM_WORLD, &commsize);
+    MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
 
     struct timeval start, end;
