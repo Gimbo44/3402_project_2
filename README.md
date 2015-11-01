@@ -8,11 +8,16 @@ The coding in the project will be minimal, it is the case quite often that paral
 
 The deliverables:
 
-    The first deliverable is of course your modified C or FORTRAN code with appropriate MPI and OpenMP directives. You should also comment your code suitably, so that the code itself can be read and your modifications can be understood.
-    You have to do a scalability study by using 2,4,6 and 8 machines in the IBM cluster. Each machine in the cluster has 4 cores. For each of the above number of machines, you should use 4 threads in each machine. Also you should do the above study using at least two problem sizes. The IBM machines each have 8 GB of RAM, so you should be able to allocate quite large arrays dynamically. You should plot the results in graphs and include in the report.
-    You have to submit a document where you should explain how you have implemented the parallelism in the code and why. Include also all the decisions related to your implementation in the first project, so that the document can be read without checking your first project again. The document should also include the graphs mentioned above. The document should be strictly in pdf format.
-    You should develop your code on the IBM cluster. Please make as much use of it as you can. However, I will make the login restricted after about ten days, so that you can conduct your final performance analysis without any interference. I will allocate slots for group members when only they can login.
-    Of course the output from your parallelized program should match the output of the sequential program.
+-   The first deliverable is of course your modified C or FORTRAN code with appropriate MPI and OpenMP directives. You     should also comment your code suitably, so that the code itself can be read and your modifications can be              understood.
+
+-   You have to do a scalability study by using 2,4,6 and 8 machines in the IBM cluster. Each machine in the cluster       has 4 cores. For each of the above number of machines, you should use 4 threads in each machine. Also you should do     the above study using at least two problem sizes. The IBM machines each have 8 GB of RAM, so you should be able to     allocate quite large arrays dynamically. You should plot the results in graphs and include in the report.
+
+-   You have to submit a document where you should explain how you have implemented the parallelism in the code and        why. Include also all the decisions related to your implementation in the first project, so that the document can      be read without checking your first project again. The document should also include the graphs mentioned above. The     document should be strictly in pdf format.
+    
+-   You should develop your code on the IBM cluster. Please make as much use of it as you can. However, I will make the     login restricted after about ten days, so that you can conduct your final performance analysis without any             interference. I will allocate slots for group members when only they can login.
+
+-   Of course the output from your parallelized program should match the output of the sequential program.
+
 
 Deadline: The submission deadline is 11:59 pm on November 4, through cssubmit.
 
