@@ -1,3 +1,10 @@
+Group Members:
+
+Arun Gimblett (21136295)
+Lachlan (Lockie) Drysdale (21355384)
+
+
+
 A combined MPI and OpenMP implementation of 1-dimesnional finite element method
 
 This project is a continuation from the first project. The aim of the project is to implement the program from the first project into a combined MPI-OpenMP framework. This is quite a common apparoach for exploiting both coarse and fine grain parallelism in programs. A problem is partitioned coarsely at the top level and finely within each individual part. The coarse level partitioning is done using MPI and the finer level partitioning is usually done on a multi-core machine or on a Graphics Processing Unit (GPU).
