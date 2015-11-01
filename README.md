@@ -1,7 +1,7 @@
 Group Members:
 
-Arun Gimblett (21136295)
-Lachlan (Lockie) Drysdale (21355384)
+- Arun Gimblett (21136295)
+- Lachlan (Lockie) Drysdale (21355384)
 
 
 
