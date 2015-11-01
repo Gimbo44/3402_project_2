@@ -2,13 +2,19 @@
 # include <stdio.h>
 # include <time.h>
 # include <sys/time.h>
+# include "mpi.h"
+
 int main ( int argc, char *argv[]  );
 void assemble ( double adiag[], double aleft[], double arite[], double f[], 
   double h[], int indx[], int nl, int node[], int nu, int nquad, int nsub, 
   double ul, double ur, double xn[], double xquad[] );
 double ff ( double x );
-void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub, 
-  int *nu, double xl, double xn[], double xquad[], double xr );
+
+
+void geometry ( double h[],  int nl, int nsub,
+                double xl, double xn[], double xquad[], double xr, int offset , int chunksize);
+void geometry_plus (int ibc, int indx[], int *nu, int nsub, int node[]);
+
 void init ( int *ibc, int *nquad, double *ul, double *ur, double *xl, 
   double *xr );
 void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul, 
@@ -175,49 +181,106 @@ int main ( int argc, char *argv[]  )
 {
   struct timeval start, end;
   gettimeofday(&start, NULL);
+//# define NSUB atoi(argv[1])
 # define NSUB atoi(argv[1])
 # define NL 20 
+# define  MASTER 0
+/*
+    * ==================================================
+    * OPENMPI INITIALIZATION + related variable initialization
+    */
+  int numtasks;
+  int taskid;
+  int rc;
+  int dest;
+  int offset;
+  int source;
+  int chunksize;
+  MPI_Status status;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
+  MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
+  /*
+  * ==================================================
+  */
+  /*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * Below is the result of implementing openmpi to the project. A local and master copy of most of the variables
+   * were necessary. I tried to be clever by only initializing the master variables inside the master process.
+   *
+  */
   double *adiag;
-  adiag=(double *)malloc(sizeof(double)*(NSUB+1));
-  //double aleft[NSUB+1];
   double *aleft;
-  aleft=(double *)malloc(sizeof(double)*(NSUB+1));
-  //double arite[NSUB+1];
   double *arite;
-  arite=(double *)malloc(sizeof(double)*(NSUB+1));
-  //double f[NSUB+1];
   double *f;
-  f=(double *)malloc(sizeof(double)*(NSUB+1));
-  //double h[NSUB];
   double *h;
-  h=(double *)malloc(sizeof(double)*(NSUB+1));
-
-
   int ibc;
-  //int indx[NSUB+1];
   int *indx;
-  indx=(int *)malloc(sizeof(int)*(NSUB+1));
-  //int node[NL*NSUB];
   int *node;
-  node=(int *)malloc(sizeof(int)*(NL*NSUB+1));
-
   int nquad;
   int nu;
   double ul;
   double ur;
   double xl;
-  //double xn[NSUB+1];
   double *xn;
-  xn=(double *)malloc(sizeof(double)*(NSUB+1));
-  //double xquad[NSUB];
   double *xquad;
-  xquad=(double *)malloc(sizeof(double)*(NSUB+1));
-
-
   double xr;
 
+  double *local_adiag;
+  double *local_aleft;
+  double *local_arite;
+  double *local_f;
+  double *local_h;
+  int local_nquad;
+  double local_ul;
+  double local_ur;
+  double local_xl;
+  double *local_xn;
+  double *local_xquad;
+  double local_xr;
+
+    if(taskid == MASTER){
+      adiag = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //double aleft[NSUB+1];
+      aleft = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //double arite[NSUB+1];
+      arite = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //double f[NSUB+1];
+      f = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //double h[NSUB];
+      h = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //int indx[NSUB+1];
+      indx = (int *) malloc(sizeof(int) * (NSUB + 1));
+      //int node[NL*NSUB];
+      node = (int *) malloc(sizeof(int) * (NL * NSUB + 1));
+      //double xn[NSUB+1];
+      xn = (double *) malloc(sizeof(double) * (NSUB + 1));
+      //double xquad[NSUB];
+      xquad = (double *) malloc(sizeof(double) * (NSUB + 1));
+    }
+
+    local_adiag = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double aleft[NSUB+1];
+    local_aleft = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double arite[NSUB+1];
+    local_arite = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double f[NSUB+1];
+    local_f = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double h[NSUB];
+    local_h = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double xn[NSUB+1];
+    local_xn = (double *) malloc(sizeof(double) * (NSUB + 1));
+    //double xquad[NSUB];
+    local_xquad = (double *) malloc(sizeof(double) * (NSUB + 1));
+
+
+
   timestamp ( );
+
 
   //printf ( "\n" );
   //printf ( "FEM1D\n" );
@@ -232,48 +295,171 @@ int main ( int argc, char *argv[]  )
   //printf ( "\n" );
   //printf ( "  The interval [XL,XR] is broken into NSUB = %d subintervals\n", NSUB );
   //printf ( "  Number of basis functions per element is NL = %d\n", NL );
+
+  /*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * Comments:
+   * So this version will be focusing on a pure mpi approach to improve performance in regards to runtime.
+   * A focus on distributing data evening/combining it will be done here. The plan was to have each process
+   * determine its own work, run the work and then return the arrays and combine them appropriately.
+   *
+   *  - Had to add another parameter (offset) to geometry.
+   *
+   * The arrays affected by geometry are:
+   *
+   *    - xn    double
+   *    - h     double
+   *    - xquad double
+   *    - node  int
+   *    - indx  int
+   *
+   * Variables that are affected by geometry are:
+   *
+   *    - nu  int
+   *
+   * Therefore all five of the following arrays need to be "reduced" or combined to allow for the
+   * application to proceed as normal.
+   *
+   * Expectations:
+   * Based on my assumptions, breaking up the code into large sections will provide a speed performance. But I worry that
+   * the larger the arrays get (larger input) the larger the overheads of transferring the data across the network, ruining any performance
+   * gains we made.
+   *
+   * Results:
+   * What was found was increasing the size of nsub resulted in performance loss. As the number of cores got
+   * larger, the run-time increased (got worse). This might be due to the fact the MPI_Reduce has additional
+   * computation overhead due to more data sources.
+   */
+
+  int i;
+
 /*
   Initialize the data.
 */
+
   init ( &ibc, &nquad, &ul, &ur, &xl, &xr );
+
 /*
   Compute the geometric quantities.
 */
-  geometry ( h, ibc, indx, NL, node, NSUB, &nu, xl, xn, xquad, xr );
+/*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * The data arrays were broken up into large sections which will, in the future, be futher optimized by incorporating openmp.
+   * Initially, to get the project started, I implemented a poor mechanism to part off any additional data which might have been missed
+   * in the case where the NSUB/numtasks didn't produce a nice number. Improvement in distributing this additional data will be
+   * achieved in later versions.
+  */
+  chunksize = (NSUB/numtasks);
+  offset = (int)(chunksize*taskid);
+  if(taskid != MASTER) {
+    if(taskid+1 == numtasks){
+      // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
+      geometry(local_h, NL, NSUB, xl, local_xn, local_xquad, xr, offset, NSUB);
+    }else{
+      geometry(local_h, NL, NSUB, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
+    }
+
+  }else{
+    geometry(local_h, NL, NSUB, xl, local_xn, local_xquad, xr, offset, chunksize);
+  }
+  ////printf("task %d chunksize = %d offset = %d, range = %d\n",taskid,chunksize,offset, chunksize + offset);
+/*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * Below consists of the three data loops that are contained in geometry that need to be recombined.
+   */
+
+  MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
+  // had to use max for ^^ because there is a necessary overlap.
+  MPI_Reduce(local_h, h,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+
+  MPI_Reduce(local_xquad, xquad,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+
+
+
+
+  if(taskid == MASTER) {
+    //Locate the geometry_plus function to read up on the reasoning behind the additional function.
+    geometry_plus(ibc,indx,&nu,NSUB,node);
+    /*
+    printf ( "\n" );
+    printf ( "  Node      Location\n" );
+    printf ( "\n" );
+    for ( i = 0; i <= NSUB; i++ ) {
+      printf ( "  %8d  %14f \n", i, xn[i] );
+    }
+    printf ( "\n" );
+    printf ( "Subint    Length\n" );
+    printf ( "\n" );
+    for ( i = 0; i < NSUB; i++ ) {
+      printf ( "  %8d  %14f\n", i+1, h[i] );
+    }
+    printf ( "\n" );
+    printf ( "Subint    Quadrature point\n" );
+    printf ( "\n" );
+    for ( i = 0; i < NSUB; i++ ) {
+      printf("  %8d  %14f\n", i + 1, xquad[i]);
+    }
+    printf ( "\n" );
+    printf ( "Subint  Left Node  Right Node\n" );
+    printf ( "\n" );
+    for ( i = 0; i < NSUB; i++ ) {
+      printf("  %8d  %8d  %8d\n", i + 1, node[0 + i * 2], node[1 + i * 2]);
+    }
+    printf ( "\n" );
+
+    printf ( "\n" );
+    printf ( "  Node  Unknown\n" );
+    printf ( "\n" );
+    for ( i = 0; i <= NSUB; i++ )
+    {
+
+      printf ( "  %8d  %8d\n", i, indx[i] );
+    }*/
 /*
   Assemble the linear system.
 */
-  assemble ( adiag, aleft, arite, f, h, indx, NL, node, nu, nquad, 
-    NSUB, ul, ur, xn, xquad );
+    assemble(adiag, aleft, arite, f, h, indx, NL, node, nu, nquad,NSUB, ul, ur, xn, xquad);
 /*
   Print out the linear system.
 */
-  prsys ( adiag, aleft, arite, f, nu );
+    prsys(adiag, aleft, arite, f, nu);
 /*
   Solve the linear system.
 */
-  solve ( adiag, aleft, arite, f, nu );
+    solve(adiag, aleft, arite, f, nu);
 /*
   Print out the solution.
 */
-  output ( f, ibc, indx, NSUB, nu, ul, ur, xn );
+    output(f, ibc, indx, NSUB, nu, ul, ur, xn);
 /*
   Terminate.
 */
-  //printf ( "\n" );
-  //printf ( "FEM1D:\n" );
-  //printf ( "  Normal end of execution.\n" );
+    //printf ( "\n" );
+    //printf ( "FEM1D:\n" );
+    //printf ( "  Normal end of execution.\n" );
 
-  //printf ( "\n" );
-  timestamp ( );
-  gettimeofday(&end, NULL);
-  double delta = ((end.tv_sec  - start.tv_sec) * 1000000u +
-                  end.tv_usec - start.tv_usec) / 1.e6;
+    //printf ( "\n" );
+    timestamp();
+    gettimeofday(&end, NULL);
+    double delta = ((end.tv_sec - start.tv_sec) * 1000000u +
+                    end.tv_usec - start.tv_usec) / 1.e6;
 
-  printf("%12.10f\n",delta);
+    printf("%12.10f\n", delta);
+  }
+  MPI_Finalize();
   return 0;
 # undef NL
 # undef NSUB
+# undef MASTER
 }
 /******************************************************************************/
 
@@ -581,8 +767,8 @@ double ff ( double x )
 }
 /******************************************************************************/
 
-void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub, 
-  int *nu, double xl, double xn[], double xquad[], double xr )
+void geometry ( double h[],  int nl, int nsub,
+                double xl, double xn[], double xquad[], double xr, int offset , int chunksize)
 
 /******************************************************************************/
 /*
@@ -673,7 +859,7 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   //printf ( "\n" );
   //printf ( "  Node      Location\n" );
   //printf ( "\n" );
-  for ( i = 0; i <= nsub; i++ )
+  for ( i = offset; i <= chunksize; i++ )
   {
     xn[i]  =  ( ( double ) ( nsub - i ) * xl 
               + ( double )          i   * xr ) 
@@ -686,7 +872,8 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   //printf ( "\n" );
   //printf ( "Subint    Length\n" );
   //printf ( "\n" );
-  for ( i = 0; i < nsub; i++ )
+
+  for ( i = offset; i < chunksize; i++ )
   {
     h[i] = xn[i+1] - xn[i];
     //printf ( "  %8d  %14f\n", i+1, h[i] );
@@ -698,12 +885,32 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   //printf ( "\n" );
   //printf ( "Subint    Quadrature point\n" );
   //printf ( "\n" );
-  for ( i = 0; i < nsub; i++ )
+  for ( i = offset; i < chunksize; i++ )
   {
     xquad[i] = 0.5 * ( xn[i] + xn[i+1] );
     //printf ( "  %8d  %14f\n", i+1, xquad[i] );
   }
-/*
+
+  return;
+}
+/******************************************************************************/
+
+void geometry_plus (int ibc, int indx[], int *nu, int nsub, int node[]){
+  /*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * So this function was the product of both frustration and time-constraints. There were two loops inside the origional
+   * geometry which were very hard to work around my openmpi implementation. Version 1.0's implementation focuses on
+   * breaking up the data arrays -> calling geometry with the sub arrays -> re-combining them.
+   *
+   * The two arrays being declare in this function couldn't have been done in the above manner because they depend on
+   * previous input to produce current. So The two loops were broken off to allow for the others to benefit from the performance
+   * boost provided by openmpi.
+   */
+  int i = 0;
+  /*
   Set the value of NODE, which records, for each interval,
   the node numbers at the left and right.
 */
@@ -716,7 +923,8 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
     node[1+i*2] = i + 1;
     //printf ( "  %8d  %8d  %8d\n", i+1, node[0+i*2], node[1+i*2] );
   }
-/*
+
+  /*
   Starting with node 0, see if an unknown is associated with
   the node.  If so, give it an index.
 */
@@ -746,7 +954,6 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   Handle the last node.
 /*/
   i = nsub;
-
   if ( ibc == 2 || ibc == 3 )
   {
     indx[i] = -1;
@@ -758,18 +965,22 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   }
 
   //printf ( "\n" );
-  //printf ( "  Number of unknowns NU = %8d\n", *nu );
+
   //printf ( "\n" );
   //printf ( "  Node  Unknown\n" );
   //printf ( "\n" );
   for ( i = 0; i <= nsub; i++ )
   {
+
     //printf ( "  %8d  %8d\n", i, indx[i] );
   }
-
   return;
 }
-/******************************************************************************/
+
+
+
+
+
 
 void init ( int *ibc, int *nquad, double *ul, double *ur, double *xl, 
   double *xr )
@@ -1200,8 +1411,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
 
   for ( i = 0; i < nu; i++ )
   {
-    //printf ( "  %8d  %14f  %14f  %14f  %14f\n",
-     // i + 1, aleft[i], adiag[i], arite[i], f[i] );
+    //printf ( "  %8d  %14f  %14f  %14f  %14f\n",i + 1, aleft[i], adiag[i], arite[i], f[i] );
   }
 
   return;
