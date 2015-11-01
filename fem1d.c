@@ -7,7 +7,7 @@
 int main ( int argc, char *argv[]  );
 void assemble ( double adiag[], double aleft[], double arite[], double f[], 
   double h[], int indx[], int nl, int node[], int nu, int nquad, int nsub, 
-  double ul, double ur, double xn[], double xquad[] );
+  double ul, double ur, double xn[], double xquad[] , int offset , int chunksize);
 double ff ( double x );
 
 
@@ -183,7 +183,7 @@ int main ( int argc, char *argv[]  )
   gettimeofday(&start, NULL);
 //# define NSUB atoi(argv[1])
 # define NSUB atoi(argv[1])
-# define NL 20 
+# define NL 10
 # define  MASTER 0
 /*
     * ==================================================
@@ -243,7 +243,7 @@ int main ( int argc, char *argv[]  )
   double *local_xquad;
   double local_xr;
   int *local_indx;
-    if(taskid == MASTER){
+
       adiag = (double *) malloc(sizeof(double) * (NSUB + 1));
       //double aleft[NSUB+1];
       aleft = (double *) malloc(sizeof(double) * (NSUB + 1));
@@ -261,7 +261,7 @@ int main ( int argc, char *argv[]  )
       xn = (double *) malloc(sizeof(double) * (NSUB + 1));
       //double xquad[NSUB];
       xquad = (double *) malloc(sizeof(double) * (NSUB + 1));
-    }
+
 
     local_adiag = (double *) malloc(sizeof(double) * (NSUB + 1));
     //double aleft[NSUB+1];
@@ -341,7 +341,26 @@ int main ( int argc, char *argv[]  )
 */
 
   init ( &ibc, &nquad, &ul, &ur, &xl, &xr );
+  chunksize = (NSUB/numtasks);
+  offset = (int)(chunksize*taskid);
+  if(taskid != MASTER) {
+    if(taskid+1 == numtasks){
+      // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
+      geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, NSUB);
+      assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, NSUB);
+    }else{
+      geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
+      assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize + offset);
 
+    }
+
+  }else{
+    geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize);
+    assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize);
+
+  }
+
+  //prsys(local_adiag, local_aleft, local_arite, local_f, nu);
 /*
   Compute the geometric quantities.
 */
@@ -355,19 +374,8 @@ int main ( int argc, char *argv[]  )
    * in the case where the NSUB/numtasks didn't produce a nice number. Improvement in distributing this additional data will be
    * achieved in later versions.
   */
-  chunksize = (NSUB/numtasks);
-  offset = (int)(chunksize*taskid);
-  if(taskid != MASTER) {
-    if(taskid+1 == numtasks){
-      // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
-      geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, NSUB);
-    }else{
-      geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
-    }
 
-  }else{
-    geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize);
-  }
+  /*
   ////printf("task %d chunksize = %d offset = %d, range = %d\n",taskid,chunksize,offset, chunksize + offset);
 /*
    * ===================================================================================================================
@@ -377,20 +385,21 @@ int main ( int argc, char *argv[]  )
    * Below consists of the three data loops that are contained in geometry that need to be recombined.
    */
 
-  MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
+  //MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
   // had to use max for ^^ because there is a necessary overlap.
-  MPI_Reduce(local_h, h,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+  //MPI_Reduce(local_h, h,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
   //MPI_Reduce(local_indx,indx, NSUB*2, MPI_INT, MPI_MAX, MASTER,MPI_COMM_WORLD);
-  MPI_Reduce(local_xquad, xquad,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+  //MPI_Reduce(local_xquad, xquad,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
 
+  MPI_Reduce(local_adiag, adiag,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+  MPI_Reduce(local_aleft, aleft,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
+  MPI_Reduce(local_arite, arite,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
 
+  MPI_Reduce(local_f, f,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
 
-
-  if(taskid == MASTER) {
-    //Locate the geometry_plus function to read up on the reasoning behind the additional function.
-    //geometry_plus(ibc,indx,&nu,NSUB,node);
-
-    printf ( "\n" );
+  MPI_Reduce(local_indx, indx,NSUB+1,MPI_INT,MPI_MAX, MASTER, MPI_COMM_WORLD);
+  MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
+    /*printf ( "\n" );
     printf ( "  Node      Location\n" );
     printf ( "\n" );
     for ( i = 0; i <= NSUB; i++ ) {
@@ -423,23 +432,24 @@ int main ( int argc, char *argv[]  )
     {
 
       printf ( "  %8d  %8d\n", i, local_indx[i] );
-    }
+    }*/
 /*
   Assemble the linear system.
 */
-    //assemble(adiag, aleft, arite, f, h, indx, NL, node, nu, nquad,NSUB, ul, ur, xn, xquad);
+
+  if(taskid == MASTER) {
 /*
   Print out the linear system.
 */
-    //prsys(adiag, aleft, arite, f, nu);
+    prsys(adiag, aleft, arite, f, nu);
 /*
   Solve the linear system.
 */
-    //solve(adiag, aleft, arite, f, nu);
+    solve(adiag, aleft, arite, f, nu);
 /*
   Print out the solution.
 */
-    //output(f, ibc, indx, NSUB, nu, ul, ur, xn);
+    output(f, ibc, indx, NSUB, nu, ul, ur, xn);
 /*
   Terminate.
 */
@@ -459,13 +469,13 @@ int main ( int argc, char *argv[]  )
   return 0;
 # undef NL
 # undef NSUB
-# undef MASTER
+
 }
 /******************************************************************************/
 
 void assemble ( double adiag[], double aleft[], double arite[], double f[], 
   double h[], int indx[], int nl, int node[], int nu, int nquad, int nsub, 
-  double ul, double ur, double xn[], double xquad[] )
+  double ul, double ur, double xn[], double xquad[], int offset , int chunksize )
 
 /******************************************************************************/
 /*
@@ -609,26 +619,18 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
   Zero out the arrays that hold the coefficients of the matrix
   and the right hand side.
 */
-  for ( i = 0; i < nu; i++ )
+  for ( i = 0; i < nsub; i++ )
   {
     f[i] = 0.0;
-  }
-  for ( i = 0; i < nu; i++ )
-  {
     adiag[i] = 0.0;
-  }
-  for ( i = 0; i < nu; i++ )
-  {
     aleft[i] = 0.0;
-  }
-  for ( i = 0; i < nu; i++ )
-  {
     arite[i] = 0.0;
   }
+
 /*
   For interval number IE,
 */
-  for ( ie = 0; ie < nsub; ie++ )
+  for ( ie = offset; ie < chunksize; ie++ )
   {
     he = h[ie];
     xleft = xn[node[0+ie*2]];
@@ -677,7 +679,7 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
 
             phi ( jl, xquade, &phij, &phijx, xleft, xrite );
 
-            aij = he * ( pp ( xquade ) * phiix * phijx 
+            aij = he * ( pp ( xquade ) * phiix * phijx
                        + qq ( xquade ) * phii  * phij   );
 /*
   If there is no variable associated with the node, then it's
@@ -692,7 +694,7 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
                 f[iu] = f[iu] - aij * ul;
               }
               else if ( jg == nsub )
-              {               
+              {
                 f[iu] = f[iu] - aij * ur;
               }
             }
@@ -897,7 +899,7 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   //printf ( "\n" );
   //printf ( "Subint  Left Node  Right Node\n" );
   //printf ( "\n" );
-  for ( i = offset*2; i < chunksize*2; i++ )
+  for ( i = 0; i < nsub; i++ )
   {
     node[0+i*2] = i;
     node[1+i*2] = i + 1;
@@ -1214,7 +1216,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
       u = f[indx[i]-1];
     }
 
-    //printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
+    printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
   }
 
   return;
