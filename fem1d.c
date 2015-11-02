@@ -191,13 +191,13 @@ int main ( int argc, char *argv[]  )
     */
   int numtasks;
   int taskid;
-  int rc;
-  int dest;
   int offset;
-  int source;
   int chunksize;
+
+  int provided;
   MPI_Status status;
-  MPI_Init(&argc, &argv);
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+  //printf("%d\n",provided);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
@@ -1216,7 +1216,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
       u = f[indx[i]-1];
     }
 
-    printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
+    //printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
   }
 
   return;
@@ -1394,9 +1394,24 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
   //printf ( "Equation  ALEFT  ADIAG  ARITE  RHS\n" );
   //printf ( "\n" );
 
-  for ( i = 0; i < nu; i++ )
-  {
-    //printf ( "  %8d  %14f  %14f  %14f  %14f\n",i + 1, aleft[i], adiag[i], arite[i], f[i] );
+  if(nu % 2 == 0){
+#pragma omp parallel for
+    for ( i = 0; i < nu; i+=2 )
+    {
+      //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
+      //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 2, aleft[i+1], adiag[i+1], arite[i+1], f[i+1] );
+    }
+  }
+  else{
+#pragma omp parallel for
+    for ( i = 1; i < nu; i+=2 )
+    {
+      //printf ("  %8d  %14f  %14f  %14f  %14f\n", i, aleft[i-1], adiag[i-1], arite[i-1], f[i-1] );
+      //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
+      if(i+2 >= nu){
+        //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 2, aleft[i+1], adiag[i+1], arite[i+1], f[i+1] );
+      }
+    }
   }
 
   return;
