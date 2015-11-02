@@ -230,6 +230,16 @@ int main ( int argc, char *argv[]  )
    *
    * Simple performance improvement.
    *
+   * There was a 1% improvement in performance over version 1.1 when nsub reaches 10,000,000
+   *
+   * Version: 1.3
+   * ___________________________
+   * This code version attempts to expand on the benefits of the last code version by implementing V3.0 from project 1 +
+   * V1.2 from the current project.
+   *
+   * Result:
+   * There was a similar performance improvement to that of version 1.2. There were moments where the current version
+   * had better performance but there was only at most a 1% improvement in performance.
    * ===================================================================================================================
    */
 
@@ -898,11 +908,47 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
  * ___________________________
  * Iteration range was altered to try and minimize the number of unnecessary iterations. Altered the declaration of
  * prsys to allow for offset data and chunksize to be passed.
+ *
+ *
+   Version: 1.3
+ * ___________________________
+ * This version combined code from project 1's v3.0 (description found below) and pure MPI implementation of v1.2
  * ===================================================================================================================
  */
-  for ( i = offset; i < chunksize; i++ )
-  {
-    //printf ( "  %8d  %14f  %14f  %14f  %14f\n",i + 1, aleft[i], adiag[i], arite[i], f[i] );
+/*
+ * ===============================================================================================================
+ * Project 1 Comments
+ * ===============================================================================================================
+ * Version 3.0:
+ * ____________________________
+ * This function is a very basic function as it only contains a single for loop.
+ * The room for optimisation is quite small as the work isn't very complex.
+ * This first version I looked at how I could reduce the number of iterations and focus on
+ * improving the linear performance.
+ *
+ * I broke the code up into two sections, even and odd values of nu. I hoped to half the iteration size of the for loop
+ * to give some performance improvements.
+ * ===================================================================================================================
+ */
+
+
+  if((nu+1) % 2 == 0){
+    for ( i = offset; i < chunksize; i+=2 )
+    {
+      //fprintf ( fp , "  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
+      //fprintf ( fp , "  %8d  %14f  %14f  %14f  %14f\n", i + 2, aleft[i+1], adiag[i+1], arite[i+1], f[i+1] );
+    }
+  }
+  else{
+
+    for ( i = offset+1; i < chunksize; i+=2 )
+    {
+      //fprintf ( fp , "  %8d  %14f  %14f  %14f  %14f\n", i, aleft[i-1], adiag[i-1], arite[i-1], f[i-1] );
+      //fprintf ( fp , "  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
+      if(i+2 >= nu){
+        //fprintf ( fp , "  %8d  %14f  %14f  %14f  %14f\n", i + 2, aleft[i+1], adiag[i+1], arite[i+1], f[i+1] );
+      }
+    }
   }
 
   return;
