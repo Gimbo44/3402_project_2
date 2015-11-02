@@ -191,16 +191,15 @@ int main ( int argc, char *argv[]  )
     */
   int numtasks;
   int taskid;
-  int rc;
-  int dest;
   int offset;
-  int source;
   int chunksize;
+
+  int provided;
   MPI_Status status;
-  MPI_Init(&argc, &argv);
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+  //printf("%d\n",provided);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
-
   /*
   * ==================================================
   */
@@ -619,102 +618,93 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
   Zero out the arrays that hold the coefficients of the matrix
   and the right hand side.
 */
-  for ( i = 0; i < nsub; i++ )
+#pragma omp parallel
   {
-    f[i] = 0.0;
-    adiag[i] = 0.0;
-    aleft[i] = 0.0;
-    arite[i] = 0.0;
-  }
+
+#pragma omp for
+    for (i = 0; i < nu; i++) {
+      f[i] = 0.0;
+      adiag[i] = 0.0;
+      aleft[i] = 0.0;
+      arite[i] = 0.0;
+    }
 
 /*
   For interval number IE,
 */
-  for ( ie = offset; ie < chunksize; ie++ )
-  {
-    he = h[ie];
-    xleft = xn[node[0+ie*2]];
-    xrite = xn[node[1+ie*2]];
+#pragma omp  for private(aij,he,ie,ig,il,iq,iu,jg,jl,ju,phii,phiix,phij,phijx,x,xleft,xquade,xrite)
+    for (ie = offset; ie < chunksize; ie++) {
+      he = h[ie];
+      xleft = xn[node[0 + ie * 2]];
+      xrite = xn[node[1 + ie * 2]];
 /*
   consider each quadrature point IQ,
 */
-    for ( iq = 0; iq < nquad; iq++ )
-    {
-      xquade = xquad[ie];
+      for (iq = 0; iq < nquad; iq++) {
+        xquade = xquad[ie];
 /*
   and evaluate the integrals associated with the basis functions
   for the left, and for the right nodes.
 */
-      for ( il = 1; il <= nl; il++ )
-      {
-        ig = node[il-1+ie*2];
-        iu = indx[ig] - 1;
+        for (il = 1; il <= nl; il++) {
+          ig = node[il - 1 + ie * 2];
+          iu = indx[ig] - 1;
 
-        if ( 0 <= iu )
-        {
-          phi ( il, xquade, &phii, &phiix, xleft, xrite );
-          f[iu] = f[iu] + he * ff ( xquade ) * phii;
+          if (0 <= iu) {
+            phi(il, xquade, &phii, &phiix, xleft, xrite);
+            f[iu] = f[iu] + he * ff(xquade) * phii;
 /*
   Take care of boundary nodes at which U' was specified.
 */
-          if ( ig == 0 )
-          {
-            x = 0.0;
-            f[iu] = f[iu] - pp ( x ) * ul;
-          }
-          else if ( ig == nsub )
-          {
-            x = 1.0;
-            f[iu] = f[iu] + pp ( x ) * ur;
-          }
+            if (ig == 0) {
+              x = 0.0;
+              f[iu] = f[iu] - pp(x) * ul;
+            }
+            else if (ig == nsub) {
+              x = 1.0;
+              f[iu] = f[iu] + pp(x) * ur;
+            }
 /*
   Evaluate the integrals that take a product of the basis
   function times itself, or times the other basis function
   that is nonzero in this interval.
 */
-          for ( jl = 1; jl <= nl; jl++ )
-          {
-            jg = node[jl-1+ie*2];
-            ju = indx[jg] - 1;
+            for (jl = 1; jl <= nl; jl++) {
+              jg = node[jl - 1 + ie * 2];
+              ju = indx[jg] - 1;
 
-            phi ( jl, xquade, &phij, &phijx, xleft, xrite );
+              phi(jl, xquade, &phij, &phijx, xleft, xrite);
 
-            aij = he * ( pp ( xquade ) * phiix * phijx
-                       + qq ( xquade ) * phii  * phij   );
+              aij = he * (pp(xquade) * phiix * phijx
+                          + qq(xquade) * phii * phij);
 /*
   If there is no variable associated with the node, then it's
   a specified boundary value, so we multiply the coefficient
   times the specified boundary value and subtract it from the
   right hand side.
 */
-            if ( ju < 0 )
-            {
-              if ( jg == 0 )
-              {
-                f[iu] = f[iu] - aij * ul;
+              if (ju < 0) {
+                if (jg == 0) {
+                  f[iu] = f[iu] - aij * ul;
+                }
+                else if (jg == nsub) {
+                  f[iu] = f[iu] - aij * ur;
+                }
               }
-              else if ( jg == nsub )
-              {
-                f[iu] = f[iu] - aij * ur;
-              }
-            }
 /*
   Otherwise, we add the coefficient we've just computed to the
   diagonal, or left or right entries of row IU of the matrix.
 */
-            else
-            {
-              if ( iu == ju )
-              {
-                adiag[iu] = adiag[iu] + aij;
-              }
-              else if ( ju < iu )
-              {
-                aleft[iu] = aleft[iu] + aij;
-              }
-              else
-              {
-                arite[iu] = arite[iu] + aij;
+              else {
+                if (iu == ju) {
+                  adiag[iu] = adiag[iu] + aij;
+                }
+                else if (ju < iu) {
+                  aleft[iu] = aleft[iu] + aij;
+                }
+                else {
+                  arite[iu] = arite[iu] + aij;
+                }
               }
             }
           }
