@@ -2,7 +2,8 @@
 # include <stdio.h>
 # include <time.h>
 # include <sys/time.h>
-# include "mpi.h"
+# include <mpi.h>
+
 
 int main ( int argc, char *argv[]  );
 void assemble ( double adiag[], double aleft[], double arite[], double f[], 
@@ -181,7 +182,7 @@ int main ( int argc, char *argv[]  )
 {
   struct timeval start, end;
   gettimeofday(&start, NULL);
-//# define NSUB atoi(argv[1])
+
 # define NSUB atoi(argv[1])
 # define NL 10
 # define  MASTER 0
@@ -191,13 +192,14 @@ int main ( int argc, char *argv[]  )
     */
   int numtasks;
   int taskid;
-  int rc;
-  int dest;
   int offset;
-  int source;
   int chunksize;
+
+  int provided;
+  int flag;
   MPI_Status status;
-  MPI_Init(&argc, &argv);
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
