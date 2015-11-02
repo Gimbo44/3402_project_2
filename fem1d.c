@@ -261,7 +261,19 @@ int main ( int argc, char *argv[]  )
    * large-smaller arrays.
    *
    * Results:
-   * Greatest performance gains are when the number of processes are greater than 2
+   * Greatest performance gains are when the number of processes are greater than 2 and when nsub was greater than
+   * 10,000
+   *
+   *
+   * Version: 2.3
+   * ___________________________
+   * This version focused on the hybrid implementation of mpi + mp and put a strong focus on prsys.
+   * From previous versions it has been seen that there was a small improvement ( 1%). We hope to further improve that
+   * through the use of mult-threading. Just like the other version 2 functions, I expect identical performance improvements.
+   *
+   * Results:
+   * Greatest performance gains are when the number of processes are greater than 2 and when nsub was greater than
+   * 10,000
    * ===================================================================================================================
    */
 
