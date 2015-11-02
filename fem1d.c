@@ -35,150 +35,7 @@ void timestamp ( void );
 int main ( int argc, char *argv[]  )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    MAIN is the main program for FEM1D.
-
-  Discussion:
-
-    FEM1D solves a one dimensional ODE using the finite element method.
-
-    The differential equation solved is
-
-      - d/dX (P dU/dX) + Q U  =  F
-
-    The finite-element method uses piecewise linear basis functions.
-
-    Here U is an unknown scalar function of X defined on the
-    interval [XL,XR], and P, Q and F are given functions of X.
-
-    The values of U or U' at XL and XR are also specified.
-
-    The interval [XL,XR] is "meshed" with NSUB+1 points,
-
-    XN(0) = XL, XN(1)=XL+H, XN(2)=XL+2*H, ..., XN(NSUB)=XR.
-
-    This creates NSUB subintervals, with interval number 1
-    having endpoints XN(0) and XN(1), and so on up to interval
-    NSUB, which has endpoints XN(NSUB-1) and XN(NSUB).
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    double ADIAG(NU), the "diagonal" coefficients.  That is, ADIAG(I) is
-    the coefficient of the I-th unknown in the I-th equation.
-
-    double ALEFT(NU), the "left hand" coefficients.  That is, ALEFT(I) 
-    is the coefficient of the (I-1)-th unknown in the I-th equation.
-    There is no value in ALEFT(1), since the first equation
-    does not refer to a "0-th" unknown.
-
-    double ARITE(NU).
-    ARITE(I) is the "right hand" coefficient of the I-th
-    equation in the linear system.  ARITE(I) is the coefficient
-    of the (I+1)-th unknown in the I-th equation.  There is
-    no value in ARITE(NU) because the NU-th equation does not
-    refer to an "NU+1"-th unknown.
-
-    double F(NU).
-    ASSEMBLE stores into F the right hand side of the linear
-    equations.
-    SOLVE replaces those values of F by the solution of the
-    linear equations.
-
-    double H(NSUB)
-    H(I) is the length of subinterval I.  This code uses
-    equal spacing for all the subintervals.
-
-    int IBC.
-    IBC declares what the boundary conditions are.
-    1, at the left endpoint, U has the value UL,
-       at the right endpoint, U' has the value UR.
-    2, at the left endpoint, U' has the value UL,
-       at the right endpoint, U has the value UR.
-    3, at the left endpoint, U has the value UL,
-       and at the right endpoint, U has the value UR.
-    4, at the left endpoint, U' has the value UL,
-       at the right endpoint U' has the value UR.
-
-    int INDX[NSUB+1].
-    For a node I, INDX(I) is the index of the unknown
-    associated with node I.
-    If INDX(I) is equal to -1, then no unknown is associated
-    with the node, because a boundary condition fixing the
-    value of U has been applied at the node instead.
-    Unknowns are numbered beginning with 1.
-    If IBC is 2 or 4, then there is an unknown value of U
-    at node 0, which will be unknown number 1.  Otherwise,
-    unknown number 1 will be associated with node 1.
-    If IBC is 1 or 4, then there is an unknown value of U
-    at node NSUB, which will be unknown NSUB or NSUB+1,
-    depending on whether there was an unknown at node 0.
-
-    int NL.
-    The number of basis functions used in a single
-    subinterval.  (NL-1) is the degree of the polynomials
-    used.  For this code, NL is fixed at 2, meaning that
-    piecewise linear functions are used as the basis.
-
-    int NODE[NL*NSUB].
-    For each subinterval I:
-    NODE[0+I*2] is the number of the left node, and
-    NODE[1+I*2] is the number of the right node.
-
-    int NQUAD.
-    The number of quadrature points used in a subinterval.
-    This code uses NQUAD = 1.
-
-    int NSUB.
-    The number of subintervals into which the interval [XL,XR] is broken.
-
-    int NU.
-    NU is the number of unknowns in the linear system.
-    Depending on the value of IBC, there will be NSUB-1,
-    NSUB, or NSUB+1 unknown values, which are the coefficients
-    of basis functions.
-
-    double UL.
-    If IBC is 1 or 3, UL is the value that U is required
-    to have at X = XL.
-    If IBC is 2 or 4, UL is the value that U' is required
-    to have at X = XL.
-
-    double UR.
-    If IBC is 2 or 3, UR is the value that U is required
-    to have at X = XR.
-    If IBC is 1 or 4, UR is the value that U' is required
-    to have at X = XR.
-
-    double XL.
-    XL is the left endpoint of the interval over which the
-    differential equation is being solved.
-
-    double XN(0:NSUB).
-    XN(I) is the location of the I-th node.  XN(0) is XL,
-    and XN(NSUB) is XR.
-
-    double XQUAD(NSUB)
-    XQUAD(I) is the location of the single quadrature point
-    in interval I.
-
-    double XR.
-    XR is the right endpoint of the interval over which the
-    differential equation is being solved.
-*/
 {
   struct timeval start, end;
   gettimeofday(&start, NULL);
@@ -202,16 +59,14 @@ int main ( int argc, char *argv[]  )
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
-  /*
-  * ==================================================
-  */
-  /*
+/*
    * ===================================================================================================================
    *  Project 2 comments
    * ===================================================================================================================
    * Version: 1.0
    * Below is the result of implementing openmpi to the project. A local and master copy of most of the variables
    * were necessary. I tried to be clever by only initializing the master variables inside the master process.
+   * ===================================================================================================================
    *
   */
   double *adiag;
@@ -244,7 +99,18 @@ int main ( int argc, char *argv[]  )
   double *local_xquad;
   double local_xr;
   int *local_indx;
-
+/*
+  * ===================================================================================================================
+  *  Project 2 comments
+  * ===================================================================================================================
+   * Initially below was a if statement to control the initialization of variables to save space. As these were early versions
+   * of the project. There were issues and walls in learning the ins and outs of openmpi and its requirements.
+   * As such to simplify things for the development of the project, global/local variables were created.
+   *
+   * Will be cleaned up in the final product.
+  * ===================================================================================================================
+ */
+    //if(taskid == MASTER) {
       adiag = (double *) malloc(sizeof(double) * (NSUB + 1));
       //double aleft[NSUB+1];
       aleft = (double *) malloc(sizeof(double) * (NSUB + 1));
@@ -282,68 +148,139 @@ int main ( int argc, char *argv[]  )
 
   timestamp ( );
 
-
-  //printf ( "\n" );
-  //printf ( "FEM1D\n" );
-  //printf ( "  C version\n" );
-  //printf ( "\n" );
-  //printf ( "  Solve the two-point boundary value problem\n" );
-  //printf ( "\n" );
-  //printf ( "  - d/dX (P dU/dX) + Q U  =  F\n" );
-  //printf ( "\n" );
-  //printf ( "  on the interval [XL,XR], specifying\n" );
-  //printf ( "  the value of U or U' at each end.\n" );
-  //printf ( "\n" );
-  //printf ( "  The interval [XL,XR] is broken into NSUB = %d subintervals\n", NSUB );
-  //printf ( "  Number of basis functions per element is NL = %d\n", NL );
-
-  /*
+/*
    * ===================================================================================================================
    *  Project 2 comments
    * ===================================================================================================================
    * Version: 1.0
-   * Comments:
-   * So this version will be focusing on a pure mpi approach to improve performance in regards to runtime.
-   * A focus on distributing data evening/combining it will be done here. The plan was to have each process
-   * determine its own work, run the work and then return the arrays and combine them appropriately.
+   * ___________________________
+   * This version of the project will be focusing on a pure MPI implementation. Doing this allows for a pure vs hybrid comparison.
+   * Initially looking at the structure, there appeared to be only three places which could benefit from an MPI implementation.
+   * These three places were the geometry, assemble and output function. Prsys showed some potential but will be looked into futher
+   * down the road.
    *
-   *  - Had to add another parameter (offset) to geometry.
+   * The first task consisted on focusing all efferts to distribute the work of the geometry function across x computers
+   * in our cluster. Looking into the geometry function, it can be seen that six things are occurring. All of which involve
+   * variable initialization/assigning values.
    *
-   * The arrays affected by geometry are:
+   * The first job was breaking up the arrays into sub-arrays. Since all arrays in geometry were built to hold NSUB
+   * elements, it made sense to divide NSUB by the number of processes. This would give us the chunk-size of the work
+   * being distributed. The second part involved the offset, where the processes should start from. This was simple enough
+   * by multiplying the taskid by the chunksize.
    *
-   *    - xn    double
-   *    - h     double
-   *    - xquad double
-   *    - node  int
-   *    - indx  int
-   *
-   * Variables that are affected by geometry are:
-   *
-   *    - nu  int
-   *
-   * Therefore all five of the following arrays need to be "reduced" or combined to allow for the
-   * application to proceed as normal.
-   *
-   * Expectations:
-   * Based on my assumptions, breaking up the code into large sections will provide a speed performance. But I worry that
-   * the larger the arrays get (larger input) the larger the overheads of transferring the data across the network, ruining any performance
-   * gains we made.
+   * Once all work was done, MPI_Reduce was used to combine the x arrays into a single global array.
    *
    * Results:
    * What was found was increasing the size of nsub resulted in performance loss. As the number of cores got
    * larger, the run-time increased (got worse). This might be due to the fact the MPI_Reduce has additional
    * computation overhead due to more data sources.
+   *
+   *
+   * Version: 1.1
+   * ___________________________
+   * Based on the poor results of version 1.0, we went back to the drawing board. We knew that overhead costs would play
+   * a big role as it did in openmp (the first project). A desire to minimize the amount of unnecessary information transferring
+   * across the network was huge. This meant that instead of having the code transferred back to the master process, the
+   * processes would need to work in isolation for as long as possible. As such, the initialization overhead cost would
+   * be distributed across two functions. Doing so would hopefully provide some performance improvements.
+   *
+   * What was done?
+   *
+   * We used the same work distribution system found in version 1.1 except we added assemble into the mix. Some alterations
+   * to the declaration of assemble we required to allow for offset and chunksize data to be sent through. What this did was allow
+   * for the processes to work independently, and combine the results.
+   *
+   * You might notice a lack of the geometry_plus function. This was because, after digging around assemble, we found it
+   * unachievable to implement a pure MPI with only partial arrays of indx and node. The entire array of both were required
+   * in any iteration cycle. Therefore, the initialization of these arrays were re-introduced to geometry and allowed
+   * to iterate over their normal range. Since these arrays didnt vary across processes, there wasn't any need to combine/
+   * compare them.
+   *
+   * Results:
+   * VERY GOOD!!!!
+   * Across all executions involving 2,4,6,8 processes, when NSUB a value of 100,000 performance gains were noticed.
+   * The performance gains ranged from:
+   * 100,000:     at least 34% improvement across all
+   * 10,000,000:  at least 85% improvement across all
+   *
+   * Version: 1.2
+   * ___________________________
+   * This version of the code attempted to further combine methods to iterate over the same data size.
+   * Since prsys iterated over size NU, it was appropriate to just allow it to iterate over its normal iteration range.
+   * I wasn't expecting anything huge with this version.
+   *
+   * Results:
+   * Showed performance improvements but less than that of version 1.1, showing that 1.2 was adding to the run-time of
+   * the application. Due to its simplicity, there isn't much performance gains that could be made. In the final version,
+   * Code from the first project will be used to improve the speed of the function by dividing by two.
+   *
+   * Simple performance improvement.
+   *
+   * There was a 1% improvement in performance over version 1.1 when nsub reaches 10,000,000
+   *
+   * Version: 1.3
+   * ___________________________
+   * This code version attempts to expand on the benefits of the last code version by implementing V3.0 from project 1 +
+   * V1.2 from the current project.
+   *
+   * Result:
+   * There was a similar performance improvement to that of version 1.2. There were moments where the current version
+   * had better performance but there was only at most a 1% improvement in performance.
+   *
+   *
+   * Version: 2.0
+   * ___________________________
+   * This version and its sub-versions will focus on a hybrid implementation of MPI. This will involve combining the best
+   * OpenMP implementations from the first project with the best implementations of version 1.0. Due to the small performance
+   * improvement, version 1.2 and 1.3 and have ignored for now and version 2.0 has been built off version 1.1 which
+   * showed the greatest performance improvement. This version, besides focusing on the hybrid implementation of MPI + MP,
+   * focuses on geometry again. Except this time looking to implement a multi-threaded solution.
+   *
+   * Results:
+   * ===================================================================================================================
    */
+
 
   int i;
 
 /*
   Initialize the data.
 */
+/*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.0
+   * ___________________________
+   * The data arrays were broken up into large sections which will, in the future, be futher optimized by incorporating openmp.
+   * Initially, to get the project started, I implemented a poor mechanism to part off any additional data which might have been missed
+   * in the case where the NSUB/numtasks didn't produce a nice number. Improvement in distributing this additional data will be
+   * achieved in later versions.
+   *
+   * Version: 1.1
+   * ___________________________
+   * The work distribution mechanism remains the same, it has proven to work effectively.
+   * In each case found below, geometry and assemble are paired
+   * ===================================================================================================================
+  */
+
 
   init ( &ibc, &nquad, &ul, &ur, &xl, &xr );
   chunksize = (NSUB/numtasks);
   offset = (int)(chunksize*taskid);
+    /*
+* ===================================================================================================================
+*  Project 2 comments
+* ===================================================================================================================
+* Version: 1.2
+* ___________________________
+* Another ser of chunksize/offset variables were created to handle the NU iterations
+* ===================================================================================================================
+*/
+    //int chunksize_nu = (nu/numtasks);
+    //int offset_nu = (int)(chunksize_nu*taskid);
+
+
   if(taskid != MASTER) {
     if(taskid+1 == numtasks){
       // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
@@ -361,36 +298,28 @@ int main ( int argc, char *argv[]  )
 
   }
 
-  //prsys(local_adiag, local_aleft, local_arite, local_f, nu);
-/*
-  Compute the geometric quantities.
-*/
 /*
    * ===================================================================================================================
    *  Project 2 comments
    * ===================================================================================================================
    * Version: 1.0
-   * The data arrays were broken up into large sections which will, in the future, be futher optimized by incorporating openmp.
-   * Initially, to get the project started, I implemented a poor mechanism to part off any additional data which might have been missed
-   * in the case where the NSUB/numtasks didn't produce a nice number. Improvement in distributing this additional data will be
-   * achieved in later versions.
-  */
-
-  /*
-  ////printf("task %d chunksize = %d offset = %d, range = %d\n",taskid,chunksize,offset, chunksize + offset);
-/*
-   * ===================================================================================================================
-   *  Project 2 comments
-   * ===================================================================================================================
-   * Version: 1.0
+   * ___________________________
    * Below consists of the three data loops that are contained in geometry that need to be recombined.
+   *
+   * Version: 1.1
+   * ___________________________
+   * Alterations to the code required past geometry changed when assemble was included into the mix. After assemble, it
+   * can be noticed that the only arrays that needed to be transferred were:
+   *
+   *    - adiag
+   *    - aleft
+   *    - arite
+   *    - f
+   *    - indx
+   *    - xn
+   *
+   * ===================================================================================================================
    */
-
-  //MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
-  // had to use max for ^^ because there is a necessary overlap.
-  //MPI_Reduce(local_h, h,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
-  //MPI_Reduce(local_indx,indx, NSUB*2, MPI_INT, MPI_MAX, MASTER,MPI_COMM_WORLD);
-  //MPI_Reduce(local_xquad, xquad,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
 
   MPI_Reduce(local_adiag, adiag,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
   MPI_Reduce(local_aleft, aleft,NSUB+1,MPI_DOUBLE,MPI_SUM, MASTER, MPI_COMM_WORLD);
@@ -400,62 +329,36 @@ int main ( int argc, char *argv[]  )
 
   MPI_Reduce(local_indx, indx,NSUB+1,MPI_INT,MPI_MAX, MASTER, MPI_COMM_WORLD);
   MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
-/*
-    printf ( "\n" );
-    printf ( "Subint    Length\n" );
-    printf ( "\n" );
-    for ( i = 0; i < NSUB; i++ ) {
-      printf ( "  %8d  %14f\n", i+1, local_h[i] );
-    }
 
-    printf ( "\n" );
-    printf ( "Subint    Quadrature point\n" );
-    printf ( "\n" );
-    for ( i = 0; i < NSUB; i++ ) {
-      printf("  %8d  %14f\n", i + 1, local_xquad[i]);
-    }
-
-    printf ( "\n" );
-    printf ( "Subint  Left Node  Right Node\n" );
-    printf ( "\n" );
-    for ( i = 0; i < NSUB; i++ ) {
-      printf("  %8d  %8d  %8d\n", i + 1, node[0 + i * 2], node[1 + i * 2]);
-    }
-
-
-    printf ( "\n" );
-
-    printf ( "\n" );
-    printf ( "  Node  Unknown\n" );
-    printf ( "\n" );
-    for ( i = 0; i <= NSUB; i++ )
-    {
-
-      printf ( "  %8d  %8d\n", i, local_indx[i] );
-    }
-    */
-/*
-  Assemble the linear system.
-*/
 
   if(taskid == MASTER) {
-/*
-  Print out the linear system.
-*/
-    /*
-    printf ( "\n" );
-    printf ( "  Node      Location\n" );
-    printf ( "\n" );
-    for ( i = 0; i <= NSUB; i++ ) {
-      printf ( "  %8d  %14f \n", i, xn[i] );
-    }
+
     prsys(adiag, aleft, arite, f, nu);
 /*
+
   Solve the linear system.
 */
+      /*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Similar to project 1, solve displays no potential to be optimized due to its nature of computation. Every element
+   * /computation requires the previous element. therefore, this must happen in a linear order to maintain identical output
+   * ===================================================================================================================
+   */
+
     solve(adiag, aleft, arite, f, nu);
 /*
   Print out the solution.
+*/
+      /*
+* ===================================================================================================================
+*  Project 2 comments
+* ===================================================================================================================
+* A decision was made to not attempt to parallelize output by using openmpi due to road block of solve. Data would have
+* to be sent to the master, solved, then re-distributed across the network which would kill any sort of performance
+* improvements already made.
+* ===================================================================================================================
 */
     output(f, ibc, indx, NSUB, nu, ul, ur, xn);
 /*
@@ -487,122 +390,34 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
 
 /******************************************************************************/
 /*
-  Purpose:
-
-    ASSEMBLE assembles the matrix and right-hand-side of the linear system.
-
-  Discussion:
-
-    The linear system has the form:
-
-      K * C = F
-
-    that is to be solved for the coefficients C.
-
-    Numerical integration is used to compute the entries of K and F.
-
-    Note that a 1 point quadrature rule, which is sometimes used to
-    assemble the matrix and right hand side, is just barely accurate
-    enough for simple problems.  If you want better results, you
-    should use a quadrature rule that is more accurate.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Output, double ADIAG(NU), the "diagonal" coefficients.  That is, 
-    ADIAG(I) is the coefficient of the I-th unknown in the I-th equation.
-
-    Output, double ALEFT(NU), the "left hand" coefficients.  That is, 
-    ALEFT(I) is the coefficient of the (I-1)-th unknown in the I-th equation.
-    There is no value in ALEFT(1), since the first equation
-    does not refer to a "0-th" unknown.
-
-    Output, double ARITE(NU).
-    ARITE(I) is the "right hand" coefficient of the I-th
-    equation in the linear system.  ARITE(I) is the coefficient
-    of the (I+1)-th unknown in the I-th equation.  There is
-    no value in ARITE(NU) because the NU-th equation does not
-    refer to an "NU+1"-th unknown.
-
-    Output, double F(NU).
-    ASSEMBLE stores into F the right hand side of the linear
-    equations.
-    SOLVE replaces those values of F by the solution of the
-    linear equations.
-
-    Input, double H(NSUB)
-    H(I) is the length of subinterval I.  This code uses
-    equal spacing for all the subintervals.
-
-    Input, int INDX[NSUB+1].
-    For a node I, INDX(I) is the index of the unknown
-    associated with node I.
-    If INDX(I) is equal to -1, then no unknown is associated
-    with the node, because a boundary condition fixing the
-    value of U has been applied at the node instead.
-    Unknowns are numbered beginning with 1.
-    If IBC is 2 or 4, then there is an unknown value of U
-    at node 0, which will be unknown number 1.  Otherwise,
-    unknown number 1 will be associated with node 1.
-    If IBC is 1 or 4, then there is an unknown value of U
-    at node NSUB, which will be unknown NSUB or NSUB+1,
-    depending on whether there was an unknown at node 0.
-
-    Input, int NL.
-    The number of basis functions used in a single
-    subinterval.  (NL-1) is the degree of the polynomials
-    used.  For this code, NL is fixed at 2, meaning that
-    piecewise linear functions are used as the basis.
-
-    Input, int NODE[NL*NSUB].
-    For each subinterval I:
-    NODE[0+I*2] is the number of the left node, and
-    NODE[1+I*2] is the number of the right node.
-
-    Input, int NU.
-    NU is the number of unknowns in the linear system.
-    Depending on the value of IBC, there will be NSUB-1,
-    NSUB, or NSUB+1 unknown values, which are the coefficients
-    of basis functions.
-
-    Input, int NQUAD.
-    The number of quadrature points used in a subinterval.
-    This code uses NQUAD = 1.
-
-    Input, int NSUB.
-    The number of subintervals into which the interval [XL,XR] is broken.
-
-    Input, double UL.
-    If IBC is 1 or 3, UL is the value that U is required
-    to have at X = XL.
-    If IBC is 2 or 4, UL is the value that U' is required
-    to have at X = XL.
-
-    Input, double UR.
-    If IBC is 2 or 3, UR is the value that U is required
-    to have at X = XR.
-    If IBC is 1 or 4, UR is the value that U' is required
-    to have at X = XR.
-
-    Input, double XL.
-    XL is the left endpoint of the interval over which the
-    differential equation is being solved.
-
-    Input, double XR.
-    XR is the right endpoint of the interval over which the
-    differential equation is being solved.
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.1
+   * ___________________________
+   * In a similar manner to what was done in version 2.0, the four for loops were combined together to produce a single for loop.
+   * Details of version 2.0 can be found below:
+   *
+   *===================================================================================================================
 */
+/*
+ * ==============================================================================================
+ * Project 1 comments
+ * ==============================================================================================
+ * Code version 2.0
+ *
+ * Below is the biggest potential for parallelization in this program.
+ * The first thing I did to increase performance in this application was to combine four for loops into
+ * a single loop that you see below containing the following lines of code:
+ *
+ *    f[i] = 0.0;
+ *    adiag[i] = 0.0;
+ *    aleft[i] = 0.0;
+ *    arite[i] = 0.0;
+ *
+ * By its self it made some small improvements in the run time.
+ * ===================================================================================================================
+ */
 {
   double aij;
   double he;
@@ -637,6 +452,17 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
 
 /*
   For interval number IE,
+*/
+    /*
+   * ===================================================================================================================
+   *  Project 2 comments
+   * ===================================================================================================================
+   * Version: 1.1
+   * ___________________________
+   * As already mentioned, assemble and geometry work together in this pure MPI implementation by both only working on
+   * an assigned iteration range. This was achieved by simply changing the ie start and end value.
+   *
+   * ===================================================================================================================
 */
   for ( ie = offset; ie < chunksize; ie++ )
   {
@@ -737,37 +563,7 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
 double ff ( double x )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    FF evaluates the right hand side function.
-
-  Discussion:
-
-    This routine evaluates the function F(X) in the differential equation.
-
-      -d/dx (p du/dx) + q u  =  f
-
-    at the point X.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    John Burkardt
-
-  Parameters:
-
-    Input, double X, the argument of the function.
-
-    Output, double FF, the value of the function.
-*/
 {
   double value;
 
@@ -781,90 +577,52 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
                 int *nu, double xl, double xn[], double xquad[], double xr, int offset , int chunksize)
 
 /******************************************************************************/
+/******************************************************************************/
 /*
-  Purpose: 
-
-    GEOMETRY sets up the geometry for the interval [XL,XR].
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Output, double H(NSUB)
-    H(I) is the length of subinterval I.  This code uses
-    equal spacing for all the subintervals.
-
-    Input, int IBC.
-    IBC declares what the boundary conditions are.
-    1, at the left endpoint, U has the value UL,
-       at the right endpoint, U' has the value UR.
-    2, at the left endpoint, U' has the value UL,
-       at the right endpoint, U has the value UR.
-    3, at the left endpoint, U has the value UL,
-       and at the right endpoint, U has the value UR.
-    4, at the left endpoint, U' has the value UL,
-       at the right endpoint U' has the value UR.
-
-    Output, int INDX[NSUB+1].
-    For a node I, INDX(I) is the index of the unknown
-    associated with node I.
-    If INDX(I) is equal to -1, then no unknown is associated
-    with the node, because a boundary condition fixing the
-    value of U has been applied at the node instead.
-    Unknowns are numbered beginning with 1.
-    If IBC is 2 or 4, then there is an unknown value of U
-    at node 0, which will be unknown number 1.  Otherwise,
-    unknown number 1 will be associated with node 1.
-    If IBC is 1 or 4, then there is an unknown value of U
-    at node NSUB, which will be unknown NSUB or NSUB+1,
-    depending on whether there was an unknown at node 0.
-
-    Input, int NL.
-    The number of basis functions used in a single
-    subinterval.  (NL-1) is the degree of the polynomials
-    used.  For this code, NL is fixed at 2, meaning that
-    piecewise linear functions are used as the basis.
-
-    Output, int NODE[NL*NSUB].
-    For each subinterval I:
-    NODE[0+I*2] is the number of the left node, and
-    NODE[1+I*2] is the number of the right node.
-
-    Input, int NSUB.
-    The number of subintervals into which the interval [XL,XR] is broken.
-
-    Output, int *NU.
-    NU is the number of unknowns in the linear system.
-    Depending on the value of IBC, there will be NSUB-1,
-    NSUB, or NSUB+1 unknown values, which are the coefficients
-    of basis functions.
-
-    Input, double XL.
-    XL is the left endpoint of the interval over which the
-    differential equation is being solved.
-
-    Output, double XN(0:NSUB).
-    XN(I) is the location of the I-th node.  XN(0) is XL,
-    and XN(NSUB) is XR.
-
-    Output, double XQUAD(NSUB)
-    XQUAD(I) is the location of the single quadrature point
-    in interval I.
-
-    Input, double XR.
-    XR is the right endpoint of the interval over which the
-    differential equation is being solved.
+ * ===================================================================================================================
+ *  Project 2 comments
+ * ===================================================================================================================
+ * Version: 1.1
+ * ___________________________
+ * In a similar manner to assemble, the code of geometry was converted to only iterate over a pre-determined
+ * range. This allowed for a reduction in the run-time due to a decrease in for loop iterations.
+ *
+ * Version: 2.0
+ * ___________________________
+ * As mentioned, this code version will be focusing on how to combine openmp and openmpi into a hybrid solution.
+ * For this code version, geometry will be the star of the show. Version 1.0 of project 1 will be combined with the
+ * code from version 1.1 of the current project.
+ * ===================================================================================================================
 */
-{
-  int i;
+
+
 /*
-  Set the value of XN, the locations of the nodes.
+* =====================================================================================================================
+* Project 1 Comments
+* =====================================================================================================================
+*  Version 1.0:
+*  ______________________________
+*
+*  Building off of version 0.2, Wrapped the whole function in a parallel region.
+*  Had issues with earlier attempts where the output was being distorted and there were multiple print statements being
+*  made.
+*
+*  This issue was resolved by using:
+*      #pragma omp single
+*      #pragma omp barrier (to make sure that the threads caught up to each other)
+*
+*  Results:
+*  - Found that the data was looking a bit strange, this was due to the fact that I was parallelizing
+*    for loops which make calculations based on previous iterations calculations. Because of this backwards calculation,
+*    parallelization is not possible.
+*  - without fprintf statements:
+*    without the inconsistent fprintf statements, a performance gain was achieved when NSUB was greater than 100,000.
+*     The performance improvement increased exponentially.
+*
+{
+int i;
+/*
+Set the value of XN, the locations of the nodes.
 */
   //printf ( "\n" );
   //printf ( "  Node      Location\n" );
@@ -910,6 +668,21 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
     //printf ( "\n" );
     //printf ( "Subint  Left Node  Right Node\n" );
     //printf ( "\n" );
+
+        /*
+* ===================================================================================================================
+*  Project 2 comments
+* ===================================================================================================================
+* Version: 1.1
+* ___________________________
+* Below were the two arrays which were causing issues in version 1.0. The two arrays in question were:
+*    - indx
+*    - node
+* Due to assemble requiring all variables stored inside these two arrays to be initialized, they had to keep their
+* normal iteration range.
+*
+* ===================================================================================================================
+*/
 #pragma omp for
     for (i = 0; i < nsub; i++) {
       node[0 + i * 2] = i;
@@ -986,61 +759,7 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
 void init ( int *ibc, int *nquad, double *ul, double *ur, double *xl, 
   double *xr )
 
-/******************************************************************************/
-/*
-  Purpose: 
 
-    INIT assigns values to variables which define the problem.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Output, int *IBC.
-    IBC declares what the boundary conditions are.
-    1, at the left endpoint, U has the value UL,
-       at the right endpoint, U' has the value UR.
-    2, at the left endpoint, U' has the value UL,
-       at the right endpoint, U has the value UR.
-    3, at the left endpoint, U has the value UL,
-       and at the right endpoint, U has the value UR.
-    4, at the left endpoint, U' has the value UL,
-       at the right endpoint U' has the value UR.
-
-    Output, int *NQUAD.
-    The number of quadrature points used in a subinterval.
-    This code uses NQUAD = 1.
-
-    Output, double *UL.
-    If IBC is 1 or 3, UL is the value that U is required
-    to have at X = XL.
-    If IBC is 2 or 4, UL is the value that U' is required
-    to have at X = XL.
-
-    Output, double *UR.
-    If IBC is 2 or 3, UR is the value that U is required
-    to have at X = XR.
-    If IBC is 1 or 4, UR is the value that U' is required
-    to have at X = XR.
-
-    Output, double *XL.
-    XL is the left endpoint of the interval over which the
-    differential equation is being solved.
-
-    Output, double *XR.
-    XR is the right endpoint of the interval over which the
-    differential equation is being solved.
-*/
 {
 /*
   IBC declares what the boundary conditions are.
@@ -1102,88 +821,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
   double ur, double xn[] )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    OUTPUT prints out the computed solution.
-
-  Discussion:
-
-    We simply print out the solution vector F, except that, for
-    certain boundary conditions, we are going to have to get the
-    value of the solution at XL or XR by using the specified
-    boundary value.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Input, double F(NU).
-    ASSEMBLE stores into F the right hand side of the linear
-    equations.
-    SOLVE replaces those values of F by the solution of the
-    linear equations.
-
-    Input, int IBC.
-    IBC declares what the boundary conditions are.
-    1, at the left endpoint, U has the value UL,
-       at the right endpoint, U' has the value UR.
-    2, at the left endpoint, U' has the value UL,
-       at the right endpoint, U has the value UR.
-    3, at the left endpoint, U has the value UL,
-       and at the right endpoint, U has the value UR.
-    4, at the left endpoint, U' has the value UL,
-       at the right endpoint U' has the value UR.
-
-    Input, int INDX[NSUB+1].
-    For a node I, INDX(I) is the index of the unknown
-    associated with node I.
-    If INDX(I) is equal to -1, then no unknown is associated
-    with the node, because a boundary condition fixing the
-    value of U has been applied at the node instead.
-    Unknowns are numbered beginning with 1.
-    If IBC is 2 or 4, then there is an unknown value of U
-    at node 0, which will be unknown number 1.  Otherwise,
-    unknown number 1 will be associated with node 1.
-    If IBC is 1 or 4, then there is an unknown value of U
-    at node NSUB, which will be unknown NSUB or NSUB+1,
-    depending on whether there was an unknown at node 0.
-
-    Input, int NSUB.
-    The number of subintervals into which the interval [XL,XR] is broken.
-
-    Input, int NU.
-    NU is the number of unknowns in the linear system.
-    Depending on the value of IBC, there will be NSUB-1,
-    NSUB, or NSUB+1 unknown values, which are the coefficients
-    of basis functions.
-
-    Input, double UL.
-    If IBC is 1 or 3, UL is the value that U is required
-    to have at X = XL.
-    If IBC is 2 or 4, UL is the value that U' is required
-    to have at X = XL.
-
-    Input, double UR.
-    If IBC is 2 or 3, UR is the value that U is required
-    to have at X = XR.
-    If IBC is 1 or 4, UR is the value that U' is required
-    to have at X = XR.
-
-    Input, double XN(0:NSUB).
-    XN(I) is the location of the I-th node.  XN(0) is XL,
-    and XN(NSUB) is XR.
-*/
 {
   int i;
   double u;
@@ -1243,46 +881,7 @@ void phi ( int il, double x, double *phii, double *phiix, double xleft,
   double xrite )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    PHI evaluates a linear basis function and its derivative.
-
-  Discussion:
-
-    The evaluation is done at a point X in an interval [XLEFT,XRITE].
-
-    In this interval, there are just two nonzero basis functions.
-    The first basis function is a line which is 1 at the left
-    endpoint and 0 at the right.  The second basis function is 0 at
-    the left endpoint and 1 at the right.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Input, int IL, the index of the basis function.
-    1, the function which is 1 at XLEFT and 0 at XRITE.
-    2, the function which is 0 at XLEFT and 1 at XRITE.
-
-    Input, double X, the evaluation point.
-
-    Output, double *PHII, *PHIIX, the value of the
-    basis function and its derivative at X.
-
-    Input, double XLEFT, XRITE, the left and right
-    endpoints of the interval.
-*/
 {
   if ( xleft <= x && x <= xrite )
   {
@@ -1313,35 +912,7 @@ void phi ( int il, double x, double *phii, double *phiix, double xleft,
 double pp ( double x )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    PP evaluates the function P in the differential equation.
-
-  Discussion:
-
-    The function P appears in the differential equation as;
-
-      - d/dx (p du/dx) + q u  =  f
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    John Burkardt
-
-  Parameters:
-
-    Input, double X, the argument of the function.
-
-    Output, double PP, the value of the function.
-*/
 {
   double value;
 
@@ -1355,52 +926,41 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
   int nu )
 
 /******************************************************************************/
+//printf ( "\n" );
+//printf ( "Printout of tridiagonal linear system:\n" );
+//printf ( "\n" );
+//printf ( "Equation  ALEFT  ADIAG  ARITE  RHS\n" );
+//printf ( "\n" );
 /*
-  Purpose:
-
-    PRSYS prints out the tridiagonal linear system.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameter:
-
-    Input, double ADIAG(NU), the "diagonal" coefficients.  That is, 
-    ADIAG(I) is the coefficient of the I-th unknown in the I-th equation.
-
-    Input, double ALEFT(NU), the "left hand" coefficients.  That is, ALEFT(I) 
-    is the coefficient of the (I-1)-th unknown in the I-th equation.
-    There is no value in ALEFT(1), since the first equation
-    does not refer to a "0-th" unknown.
-
-    Input, double ARITE(NU).
-    ARITE(I) is the "right hand" coefficient of the I-th
-    equation in the linear system.  ARITE(I) is the coefficient
-    of the (I+1)-th unknown in the I-th equation.  There is
-    no value in ARITE(NU) because the NU-th equation does not
-    refer to an "NU+1"-th unknown.
-
-    Input, double F(NU).
-    ASSEMBLE stores into F the right hand side of the linear
-    equations.
-    SOLVE replaces those values of F by the solution of the
-    linear equations.
-
-    Input, int NU.
-    NU is the number of unknowns in the linear system.
-    Depending on the value of IBC, there will be NSUB-1,
-    NSUB, or NSUB+1 unknown values, which are the coefficients
-    of basis functions.
+* ===================================================================================================================
+*  Project 2 comments
+* ===================================================================================================================
+* Version: 1.2
+* ___________________________
+* Iteration range was altered to try and minimize the number of unnecessary iterations. Altered the declaration of
+* prsys to allow for offset data and chunksize to be passed.
+*
+*
+ Version: 1.3
+* ___________________________
+* This version combined code from project 1's v3.0 (description found below) and pure MPI implementation of v1.2
+* ===================================================================================================================
 */
+/*
+ * ===============================================================================================================
+ * Project 1 Comments
+ * ===============================================================================================================
+ * Version 3.0:
+ * ____________________________
+ * This function is a very basic function as it only contains a single for loop.
+ * The room for optimisation is quite small as the work isn't very complex.
+ * This first version I looked at how I could reduce the number of iterations and focus on
+ * improving the linear performance.
+ *
+ * I broke the code up into two sections, even and odd values of nu. I hoped to half the iteration size of the for loop
+ * to give some performance improvements.
+ * ===================================================================================================================
+ */
 {
   int i;
 
@@ -1422,35 +982,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
 double qq ( double x )
 
 /******************************************************************************/
-/*
-  Purpose: 
 
-    QQ evaluates the function Q in the differential equation.
-
-  Discussion:
-
-    The function Q appears in the differential equation as:
-
-      - d/dx (p du/dx) + q u  =  f
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    John Burkardt
-
-  Parameters:
-
-    Input, double X, the argument of the function.
-
-    Output, double QQ, the value of the function.
-*/
 {
   double value;
 
@@ -1464,42 +996,7 @@ void solve ( double adiag[], double aleft[], double arite[], double f[],
   int nu )
 
 /******************************************************************************/
-/*
-  Purpose: 
 
-    SOLVE solves a tridiagonal matrix system of the form A*x = b.
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    29 May 2009
-
-  Author:
-
-    C version by John Burkardt
-
-  Parameters:
-
-    Input/output, double ADIAG(NU), ALEFT(NU), ARITE(NU).
-    On input, ADIAG, ALEFT, and ARITE contain the diagonal,
-    left and right entries of the equations.
-    On output, ADIAG and ARITE have been changed in order
-    to compute the solution.
-    Note that for the first equation, there is no ALEFT
-    coefficient, and for the last, there is no ARITE.
-    So there is no need to store a value in ALEFT(1), nor
-    in ARITE(NU).
-
-    Input/output, double F(NU).
-    On input, F contains the right hand side of the linear
-    system to be solved.
-    On output, F contains the solution of the linear system.
-
-    Input, int NU, the number of equations to be solved.
-*/
 {
   int i;
 /*
@@ -1538,31 +1035,7 @@ void solve ( double adiag[], double aleft[], double arite[], double f[],
 void timestamp ( void )
 
 /******************************************************************************/
-/*
-  Purpose:
 
-    TIMESTAMP prints the current YMDHMS date as a time stamp.
-
-  Example:
-
-    31 May 2001 09:45:54 AM
-
-  Licensing:
-
-    This code is distributed under the GNU LGPL license. 
-
-  Modified:
-
-    24 September 2003
-
-  Author:
-
-    John Burkardt
-
-  Parameters:
-
-    None
-*/
 {
 # define TIME_SIZE 40
 
