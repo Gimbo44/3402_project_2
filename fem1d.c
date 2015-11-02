@@ -348,16 +348,18 @@ int main ( int argc, char *argv[]  )
       // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
       geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, NSUB);
       assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, NSUB);
+      prsys(local_adiag, local_aleft, local_arite, local_f, nu);
     }else{
       geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
       assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize + offset);
+      prsys(local_adiag, local_aleft, local_arite, local_f, nu);
 
     }
 
   }else{
     geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize);
     assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize);
-
+    prsys(local_adiag, local_aleft, local_arite, local_f, nu);
   }
 
   //prsys(local_adiag, local_aleft, local_arite, local_f, nu);
@@ -441,7 +443,7 @@ int main ( int argc, char *argv[]  )
 /*
   Print out the linear system.
 */
-    prsys(adiag, aleft, arite, f, nu);
+
 /*
   Solve the linear system.
 */
@@ -1216,7 +1218,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
       u = f[indx[i]-1];
     }
 
-    printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
+    //printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
   }
 
   return;
