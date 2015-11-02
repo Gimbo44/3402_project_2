@@ -3,7 +3,7 @@
 # include <time.h>
 # include <sys/time.h>
 # include <mpi.h>
-
+# include <omp.h>
 
 int main ( int argc, char *argv[]  );
 void assemble ( double adiag[], double aleft[], double arite[], double f[], 
@@ -196,10 +196,9 @@ int main ( int argc, char *argv[]  )
   int chunksize;
 
   int provided;
-  int flag;
   MPI_Status status;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-
+  //printf("%d\n",provided);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
@@ -401,30 +400,29 @@ int main ( int argc, char *argv[]  )
 
   MPI_Reduce(local_indx, indx,NSUB+1,MPI_INT,MPI_MAX, MASTER, MPI_COMM_WORLD);
   MPI_Reduce(local_xn, xn,NSUB+1,MPI_DOUBLE,MPI_MAX, MASTER, MPI_COMM_WORLD);
-    /*printf ( "\n" );
-    printf ( "  Node      Location\n" );
-    printf ( "\n" );
-    for ( i = 0; i <= NSUB; i++ ) {
-      printf ( "  %8d  %14f \n", i, xn[i] );
-    }
+/*
     printf ( "\n" );
     printf ( "Subint    Length\n" );
     printf ( "\n" );
     for ( i = 0; i < NSUB; i++ ) {
-      printf ( "  %8d  %14f\n", i+1, h[i] );
+      printf ( "  %8d  %14f\n", i+1, local_h[i] );
     }
+
     printf ( "\n" );
     printf ( "Subint    Quadrature point\n" );
     printf ( "\n" );
     for ( i = 0; i < NSUB; i++ ) {
-      printf("  %8d  %14f\n", i + 1, xquad[i]);
+      printf("  %8d  %14f\n", i + 1, local_xquad[i]);
     }
+
     printf ( "\n" );
     printf ( "Subint  Left Node  Right Node\n" );
     printf ( "\n" );
     for ( i = 0; i < NSUB; i++ ) {
       printf("  %8d  %8d  %8d\n", i + 1, node[0 + i * 2], node[1 + i * 2]);
     }
+
+
     printf ( "\n" );
 
     printf ( "\n" );
@@ -434,7 +432,8 @@ int main ( int argc, char *argv[]  )
     {
 
       printf ( "  %8d  %8d\n", i, local_indx[i] );
-    }*/
+    }
+    */
 /*
   Assemble the linear system.
 */
@@ -443,6 +442,13 @@ int main ( int argc, char *argv[]  )
 /*
   Print out the linear system.
 */
+    /*
+    printf ( "\n" );
+    printf ( "  Node      Location\n" );
+    printf ( "\n" );
+    for ( i = 0; i <= NSUB; i++ ) {
+      printf ( "  %8d  %14f \n", i, xn[i] );
+    }
     prsys(adiag, aleft, arite, f, nu);
 /*
   Solve the linear system.
@@ -863,102 +869,110 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
   //printf ( "\n" );
   //printf ( "  Node      Location\n" );
   //printf ( "\n" );
-  for ( i = offset; i <= chunksize; i++ )
+#pragma omp parallel
   {
-    xn[i]  =  ( ( double ) ( nsub - i ) * xl 
-              + ( double )          i   * xr ) 
-              / ( double ) ( nsub );
-    //printf ( "  %8d  %14f \n", i, xn[i] );
-  }
+#pragma omp for
+    for (i = offset; i <= chunksize; i++) {
+      xn[i] = ((double) (nsub - i) * xl
+               + (double) i * xr)
+              / (double) (nsub);
+      //printf ( "  %8d  %14f \n", i, xn[i] );
+    }
 /*
   Set the lengths of each subinterval.
 */
-  //printf ( "\n" );
-  //printf ( "Subint    Length\n" );
-  //printf ( "\n" );
 
-  for ( i = offset; i < chunksize; i++ )
-  {
-    h[i] = xn[i+1] - xn[i];
-    //printf ( "  %8d  %14f\n", i+1, h[i] );
-  }
+    //printf ( "\n" );
+    //printf ( "Subint    Length\n" );
+    //printf ( "\n" );
+#pragma omp for
+    for (i = offset; i < chunksize; i++) {
+      h[i] = xn[i + 1] - xn[i];
+      //printf ( "  %8d  %14f\n", i+1, h[i] );
+    }
 /*
   Set the quadrature points, each of which is the midpoint
   of its subinterval.
 */
-  //printf ( "\n" );
-  //printf ( "Subint    Quadrature point\n" );
-  //printf ( "\n" );
-  for ( i = offset; i < chunksize; i++ )
-  {
-    xquad[i] = 0.5 * ( xn[i] + xn[i+1] );
-    //printf ( "  %8d  %14f\n", i+1, xquad[i] );
-  }
-  /*
-  Set the value of NODE, which records, for each interval,
-  the node numbers at the left and right.
-*/
-  //printf ( "\n" );
-  //printf ( "Subint  Left Node  Right Node\n" );
-  //printf ( "\n" );
-  for ( i = 0; i < nsub; i++ )
-  {
-    node[0+i*2] = i;
-    node[1+i*2] = i + 1;
-    //printf ( "  %8d  %8d  %8d\n", i+1, node[0+i*2], node[1+i*2] );
-  }
 
-  /*
-  Starting with node 0, see if an unknown is associated with
-  the node.  If so, give it an index.
-*/
-  *nu = 0;
+    //printf ( "\n" );
+    //printf ( "Subint    Quadrature point\n" );
+    //printf ( "\n" );
+#pragma omp for
+    for (i = offset; i < chunksize; i++) {
+      xquad[i] = 0.5 * (xn[i] + xn[i + 1]);
+      //printf ( "  %8d  %14f\n", i+1, xquad[i] );
+    }
+    /*
+    Set the value of NODE, which records, for each interval,
+    the node numbers at the left and right.
+  */
+    //printf ( "\n" );
+    //printf ( "Subint  Left Node  Right Node\n" );
+    //printf ( "\n" );
+#pragma omp for
+    for (i = 0; i < nsub; i++) {
+      node[0 + i * 2] = i;
+      node[1 + i * 2] = i + 1;
+      //printf ( "  %8d  %8d  %8d\n", i+1, node[0+i*2], node[1+i*2] );
+    }
+
+    /*
+    Starting with node 0, see if an unknown is associated with
+    the node.  If so, give it an index.
+  */
+#pragma omp single
+    {
+      *nu = 0;
 /*
   Handle first node.
 */
-  i = 0;
-  if ( ibc == 1 || ibc == 3 )
-  {
-    indx[i] = -1;
-  }
-  else
-  {
-    *nu = *nu + 1;
-    indx[i] = *nu;
-  }
+
+      if (ibc == 1 || ibc == 3) {
+        indx[0] = -1;
+      }
+      else {
+        *nu = *nu + 1;
+        indx[0] = *nu;
+      }
+
+
 /*
   Handle nodes 1 through nsub-1
 */
-  for ( i = 1; i < nsub; i++ )
-  {
-    *nu = *nu + 1;
-    indx[i] = *nu;
-  }
+    }
+#pragma omp for
+    for (i = 1; i < nsub; i++) {
+      *nu = *nu + 1;
+      indx[i] = *nu;
+    }
+#pragma omp single
+    {
+
+      if (ibc == 2 || ibc == 3) {
+        indx[nsub] = -1;
+      }
+      else {
+        *nu = *nu + 1;
+        indx[nsub] = *nu;
+      }
+    }
 /*
   Handle the last node.
 /*/
-  i = nsub;
-  if ( ibc == 2 || ibc == 3 )
-  {
-    indx[i] = -1;
+
+
+    //printf ( "\n" );
+
+    //printf ( "\n" );
+    //printf ( "  Node  Unknown\n" );
+    //printf ( "\n" );
+#pragma omp for
+    for (i = 0; i <= nsub; i++) {
+
+      //printf ( "  %8d  %8d\n", i, indx[i] );
+    }
   }
-  else
-  {
-    *nu = *nu + 1;
-    indx[i] = *nu;
-  }
-
-  //printf ( "\n" );
-
-  //printf ( "\n" );
-  //printf ( "  Node  Unknown\n" );
-  //printf ( "\n" );
-  for ( i = 0; i <= nsub; i++ )
-  {
-
-    //printf ( "  %8d  %8d\n", i, indx[i] );
-  }
-
   return;
 }
 /******************************************************************************/
