@@ -706,9 +706,7 @@ Set the value of XN, the locations of the nodes.
 //printf ( "\n" );
 //printf ( "  Node      Location\n" );
 //printf ( "\n" );
-#pragma omp parallel
-{
-#pragma omp for
+
     for (i = offset; i <= chunksize; i++) {
         xn[i] = ((double) (nsub - i) * xl
                  + (double) i * xr)
@@ -722,7 +720,7 @@ Set the value of XN, the locations of the nodes.
     //printf ( "\n" );
     //printf ( "Subint    Length\n" );
     //printf ( "\n" );
-#pragma omp for
+
     for (i = offset; i < chunksize; i++) {
         h[i] = xn[i + 1] - xn[i];
         //printf ( "  %8d  %14f\n", i+1, h[i] );
@@ -735,7 +733,7 @@ Set the value of XN, the locations of the nodes.
     //printf ( "\n" );
     //printf ( "Subint    Quadrature point\n" );
     //printf ( "\n" );
-#pragma omp for
+
     for (i = offset; i < chunksize; i++) {
         xquad[i] = 0.5 * (xn[i] + xn[i + 1]);
         //printf ( "  %8d  %14f\n", i+1, xquad[i] );
@@ -762,7 +760,7 @@ Set the value of XN, the locations of the nodes.
 *
 * ===================================================================================================================
 */
-#pragma omp for
+
     for (i = 0; i < nsub; i++) {
         node[0 + i * 2] = i;
         node[1 + i * 2] = i + 1;
@@ -773,8 +771,7 @@ Set the value of XN, the locations of the nodes.
     Starting with node 0, see if an unknown is associated with
     the node.  If so, give it an index.
   */
-#pragma omp single
-    {
+
         *nu = 0;
 /*
   Handle first node.
@@ -792,14 +789,12 @@ Set the value of XN, the locations of the nodes.
 /*
   Handle nodes 1 through nsub-1
 */
-    }
-#pragma omp for
+
     for (i = 1; i < nsub; i++) {
         *nu = *nu + 1;
         indx[i] = *nu;
     }
-#pragma omp single
-    {
+
 
         if (ibc == 2 || ibc == 3) {
             indx[nsub] = -1;
@@ -808,7 +803,7 @@ Set the value of XN, the locations of the nodes.
             *nu = *nu + 1;
             indx[nsub] = *nu;
         }
-    }
+
 /*
   Handle the last node.
 /*/
@@ -819,12 +814,12 @@ Set the value of XN, the locations of the nodes.
     //printf ( "\n" );
     //printf ( "  Node  Unknown\n" );
     //printf ( "\n" );
-#pragma omp for
+
     for (i = 0; i <= nsub; i++) {
 
         //printf ( "  %8d  %8d\n", i, indx[i] );
     }
-}
+
 return;
 }
 /******************************************************************************/
