@@ -1080,9 +1080,8 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
  *
  * Version: 3.0
 * ___________________________
-* For the final version, triggers were implemented into prsys to ensure it only "fires" when the conditions allow for the
- * function to provide the most performance improvements. In the case of prsys, its when the number of processes is greater
- * than or equal to 6 and when nu >= 10,000,000. This version combines version 1.3 and 2.3.
+*  This version combined the results of 1.3 and 2.3 to produce the below result. It is a combination of both mpi and
+*  mp. 
 * ===================================================================================================================
 */
 /*
