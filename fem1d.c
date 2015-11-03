@@ -284,6 +284,14 @@ int main ( int argc, char *argv[]  )
    * the results were reviewed to see when it was best to use and when it was best not to use openmp and openmpi.
    *
    * Results:
+   * It showed improvements in speed only when the process count was greater than 6 and the nsub value was in excess of
+   * 10,000,000.
+   *
+   * Version 3.1
+   * ___________________________
+   * This is the final version of the code. It is a refined version of 3.0 which looked at the points in time the application
+   * ran at its fastest and under what conditions. These conditions were recorded and triggers were placed in the code to
+   * fire when said event occurred.
    *
    * ===================================================================================================================
    */
