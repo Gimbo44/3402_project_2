@@ -688,15 +688,7 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
 *
 *  This issue was resolved by using:
 *      #pragma omp single
-*      #pragma omp barrier (to make sure that the threads caught up to each other)
-*
-*  Results:
-*  - Found that the data was looking a bit strange, this was due to the fact that I was parallelizing
-*    for loops which make calculations based on previous iterations calculations. Because of this backwards calculation,
-*    parallelization is not possible.
-*  - without fprintf statements:
-*    without the inconsistent fprintf statements, a performance gain was achieved when NSUB was greater than 100,000.
-*     The performance improvement increased exponentially.
+*      #pragma omp barrier (to make sure that the threads caught up to each other
 */
 
 int i;
