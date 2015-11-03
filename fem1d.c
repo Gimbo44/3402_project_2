@@ -280,8 +280,7 @@ int main ( int argc, char *argv[]  )
    * ___________________________
    * This version is theoretically the very last version for the project. After reviewing all the data from all versions,
    * code was either include or not included depending on how well it improved the run-time. When the code was included,
-   * the results were reviewed to see when it was best to use and when it was best not to use openmp and openmpi. Triggers
-   * have been placed to ensure the most optimized time is achieved.
+   * the results were reviewed to see when it was best to use and when it was best not to use openmp and openmpi.
    *
    * Results:
    *
@@ -692,7 +691,7 @@ double ff ( double x )
 /******************************************************************************/
 
 void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
-                int *nu, double xl, double xn[], double xquad[], double xr, int offset , int chunksize){
+                int *nu, double xl, double xn[], double xquad[], double xr, int offset , int chunksize, int numproc){
 
 /******************************************************************************/
 /******************************************************************************/
@@ -710,6 +709,11 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
  * As mentioned, this code version will be focusing on how to combine openmp and openmpi into a hybrid solution.
  * For this code version, geometry will be the star of the show. Version 1.0 of project 1 will be combined with the
  * code from version 1.1 of the current project.
+ *
+ *
+ * Version: 3.0
+ * ___________________________
+ * As already mention the version summary, in geometry version 2.0 has been combined with version 1.3
  * ===================================================================================================================
 */
 
@@ -1127,7 +1131,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
     //printf ( "\n" );
 
     if((nu+1) % 2 == 0){
-#pragma omp parallel for if ( nu >= 10000000 && numproc >= 6)
+#pragma omp parallel for
         for ( i = offset; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
@@ -1135,7 +1139,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
         }
     }
     else{
-#pragma omp parallel for if ( nu >= 10000000 && numproc >= 6)
+#pragma omp parallel for
         for ( i = offset+1; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i, aleft[i-1], adiag[i-1], arite[i-1], f[i-1] );
