@@ -618,7 +618,7 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
 *  - without fprintf statements:
 *    without the inconsistent fprintf statements, a performance gain was achieved when NSUB was greater than 100,000.
 *     The performance improvement increased exponentially.
-*
+*/
 {
 int i;
 /*
