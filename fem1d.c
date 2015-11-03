@@ -55,6 +55,7 @@ int main ( int argc, char *argv[]  )
 
     int provided;
     MPI_Status status;
+
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
     //printf("%d\n",provided);
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
@@ -291,7 +292,9 @@ int main ( int argc, char *argv[]  )
    * ___________________________
    * This is the final version of the code. It is a refined version of 3.0 which looked at the points in time the application
    * ran at its fastest and under what conditions. These conditions were recorded and triggers were placed in the code to
-   * fire when said event occurred.
+   * fire when said event occurred. Based on our results, it was found that version 2.1 was the only one to improve the speed performance
+   * of the application. Reasons for this will be explained in the report.
+   *
    *
    * ===================================================================================================================
    */
@@ -338,6 +341,10 @@ int main ( int argc, char *argv[]  )
 * ___________________________
 * The chunksize/offset variables for the nu variable have been uncommented as version 1.3 will be included due to its
 * speed improvement at high nsub values.
+* Version: 3.1
+* ___________________________
+* Final version still used the chunksize_nu and offset_nu variables as 3.1 has implemented the 1.3 functionality due
+* to the speed performance achieved.
 * ===================================================================================================================
 */
     int chunksize_nu = (nu/numtasks);
@@ -551,6 +558,16 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
    *
    * In this version, any mp triggers (when to use and when not to use) have been removed and will be re-implemented
    * in later versions.
+   *
+   *
+   * Version: 3.1
+ * ___________________________
+ * Out of all versions in 2.* where openmp was attempted to be implemented along side the mpi library, version 2.1
+ * was the only one to improve run-time. This could be due to the huge computation cost of the function. additional
+ * discussion can be found inside the report. A trigger was added at the point where the performance was improved.
+ * these points were:
+ *  processes >=6
+ *  nsub    >= 100,000
    *===================================================================================================================
 */
 
@@ -578,7 +595,7 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
   Zero out the arrays that hold the coefficients of the matrix
   and the right hand side.
 */
-#pragma omp parallel
+#pragma omp parallel if(nsub >=100000 && numtasks >=6)
     {
 #pragma omp for
         for (i = 0; i < nsub; i++) {
@@ -723,6 +740,11 @@ void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
  * Version: 3.0
  * ___________________________
  * As already mention the version summary, in geometry version 2.0 has been combined with version 1.3
+ *
+ * Version: 3.1
+ * ___________________________
+ * Based on the results of 2.0 and the overall 3.0 version, no performance was achieved by multi-threading this function.
+ * The reasoning behind why can be found in the report.
  * ===================================================================================================================
 */
 
@@ -758,9 +780,9 @@ Set the value of XN, the locations of the nodes.
 //printf ( "\n" );
 //printf ( "  Node      Location\n" );
 //printf ( "\n" );
-#pragma omp parallel
-    {
-#pragma omp for
+//#pragma omp parallel
+    //{
+//#pragma omp for
         for (i = offset; i <= chunksize; i++) {
             xn[i] = ((double) (nsub - i) * xl
                      + (double) i * xr)
@@ -774,7 +796,7 @@ Set the value of XN, the locations of the nodes.
         //printf ( "\n" );
         //printf ( "Subint    Length\n" );
         //printf ( "\n" );
-#pragma omp for
+//#pragma omp for
         for (i = offset; i < chunksize; i++) {
             h[i] = xn[i + 1] - xn[i];
             //printf ( "  %8d  %14f\n", i+1, h[i] );
@@ -787,7 +809,7 @@ Set the value of XN, the locations of the nodes.
         //printf ( "\n" );
         //printf ( "Subint    Quadrature point\n" );
         //printf ( "\n" );
-#pragma omp for
+//#pragma omp for
         for (i = offset; i < chunksize; i++) {
             xquad[i] = 0.5 * (xn[i] + xn[i + 1]);
             //printf ( "  %8d  %14f\n", i+1, xquad[i] );
@@ -814,7 +836,7 @@ Set the value of XN, the locations of the nodes.
     *
     * ===================================================================================================================
     */
-#pragma omp for
+//#pragma omp for
         for (i = 0; i < nsub; i++) {
             node[0 + i * 2] = i;
             node[1 + i * 2] = i + 1;
@@ -825,8 +847,8 @@ Set the value of XN, the locations of the nodes.
         Starting with node 0, see if an unknown is associated with
         the node.  If so, give it an index.
       */
-#pragma omp single
-        {
+//#pragma omp single
+        //{
             *nu = 0;
 /*
   Handle first node.
@@ -844,14 +866,14 @@ Set the value of XN, the locations of the nodes.
 /*
   Handle nodes 1 through nsub-1
 */
-        }
-#pragma omp for
+        //}
+//#pragma omp for
         for (i = 1; i < nsub; i++) {
             *nu = *nu + 1;
             indx[i] = *nu;
         }
-#pragma omp single
-        {
+//#pragma omp single
+        //{
 
             if (ibc == 2 || ibc == 3) {
                 indx[nsub] = -1;
@@ -860,7 +882,7 @@ Set the value of XN, the locations of the nodes.
                 *nu = *nu + 1;
                 indx[nsub] = *nu;
             }
-        }
+        //}
 /*
   Handle the last node.
 /*/
@@ -871,12 +893,12 @@ Set the value of XN, the locations of the nodes.
         //printf ( "\n" );
         //printf ( "  Node  Unknown\n" );
         //printf ( "\n" );
-#pragma omp for
+//#pragma omp for
         for (i = 0; i <= nsub; i++) {
 
             //printf ( "  %8d  %8d\n", i, indx[i] );
         }
-    }
+    //}
     return;
 }
 /******************************************************************************/
@@ -952,7 +974,18 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
               double ur, double xn[] )
 
 /******************************************************************************/
+/*
+ ** ===================================================================================================================
+    *  Project 2 comments
+    * ===================================================================================================================
+    * Version: 3.1
+    * ___________________________
+    * Due to the simplicity of output, and based on the results, no performance improvements were achieved via parallelizing
+    * output. The reasoning behind why no performance was gained can be found in the report.
+    *
+    * ===================================================================================================================
 
+ */
 {
     int i;
     double u;
@@ -962,7 +995,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
     //printf ( "\n" );
     //printf ( "  Node    X(I)        U(X(I))\n" );
     //printf ( "\n" );
-#pragma omp parallel for private(u)
+//#pragma omp parallel for private(u)
     for ( i = 0; i <= nsub; i++ )
     {
 /*
@@ -1088,14 +1121,19 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
  *
  * Version: 3.0
 * ___________________________
-* For the final version, triggers were implemented into prsys to ensure it only "fires" when the conditions allow for the
- * function to provide the most performance improvements. In the case of prsys, its when the number of processes is greater
- * than or equal to 6 and when nu >= 10,000,000. This version combines version 1.3 and 2.3.
+* This version combined the results of 1.3 and 2.3 to produce the below result. It is a combination of both mpi and
+*  mp.
+ *
+*  Version: 3.1
+* ___________________________
+ * Based on the final results, it appears the only speed benefit achieved from prsys was in version 1.3.
+ * Due to this, 1.3 has been implemented into the application and any openmp calls have been commented out.
+ *
 * ===================================================================================================================
 */
 /*
    * ===============================================================================================================
-   * Project Comments
+   * Project 1 Comments
    * ===============================================================================================================
    * Version 3.0:
    * ____________________________
@@ -1140,7 +1178,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
     //printf ( "\n" );
 
     if((nu+1) % 2 == 0){
-#pragma omp parallel for
+//#pragma omp parallel for
         for ( i = offset; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
@@ -1148,7 +1186,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
         }
     }
     else{
-#pragma omp parallel for
+//#pragma omp parallel for
         for ( i = offset+1; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i, aleft[i-1], adiag[i-1], arite[i-1], f[i-1] );
