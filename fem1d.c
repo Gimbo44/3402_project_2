@@ -316,7 +316,7 @@ int main ( int argc, char *argv[]  )
 */
     //int chunksize_nu = (nu/numtasks);
     //int offset_nu = (int)(chunksize_nu*taskid);
-
+0p-
 
     if(taskid != MASTER) {
         if(taskid+1 == numtasks){
