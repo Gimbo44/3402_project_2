@@ -8,12 +8,13 @@
 int main ( int argc, char *argv[]  );
 void assemble ( double adiag[], double aleft[], double arite[], double f[],
                 double h[], int indx[], int nl, int node[], int nu, int nquad, int nsub,
-                double ul, double ur, double xn[], double xquad[] , int offset , int chunksize);
+                double ul, double ur, double xn[], double xquad[], int offset , int chunksize, int numproc);
+
 double ff ( double x );
 
 
 void geometry ( double h[], int ibc, int indx[], int nl, int node[], int nsub,
-                int *nu, double xl, double xn[], double xquad[], double xr, int offset , int chunksize);
+                int *nu, double xl, double xn[], double xquad[], double xr, int offset , int chunksize, int numproc);
 
 
 void init ( int *ibc, int *nquad, double *ul, double *ur, double *xl,
@@ -24,7 +25,7 @@ void phi ( int il, double x, double *phii, double *phiix, double xleft,
            double xrite );
 double pp ( double x );
 void prsys ( double adiag[], double aleft[], double arite[], double f[],
-             int nu ,int offset , int chunksize);
+             int nu ,int offset , int chunksize, int numproc);
 double qq ( double x );
 void solve ( double adiag[], double aleft[], double arite[], double f[],
              int nu );
@@ -341,7 +342,7 @@ int main ( int argc, char *argv[]  )
             assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, NSUB,numtasks);
             prsys(local_adiag, local_aleft, local_arite, local_f, nu,offset_nu,nu,numtasks);
         }else{
-            geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
+            geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset,numtasks);
             assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize + offset,numtasks);
             prsys(local_adiag, local_aleft, local_arite, local_f, nu,offset_nu,chunksize_nu+offset_nu,numtasks);
 
@@ -439,7 +440,7 @@ int main ( int argc, char *argv[]  )
 
 void assemble ( double adiag[], double aleft[], double arite[], double f[],
                 double h[], int indx[], int nl, int node[], int nu, int nquad, int nsub,
-                double ul, double ur, double xn[], double xquad[], int offset , int chunksize )
+                double ul, double ur, double xn[], double xquad[], int offset , int chunksize, int numtasks )
 
 /******************************************************************************/
 /*
