@@ -1081,7 +1081,7 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
  * Version: 3.0
 * ___________________________
 *  This version combined the results of 1.3 and 2.3 to produce the below result. It is a combination of both mpi and
-*  mp. 
+*  mp.
 * ===================================================================================================================
 */
 /*
