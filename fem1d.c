@@ -1034,7 +1034,7 @@ void output ( double f[], int ibc, int indx[], int nsub, int nu, double ul,
             u = f[indx[i]-1];
         }
 
-        //printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
+        printf ( "  %8d  %8f  %14f\n", i, xn[i], u );
     }
 
     return;
