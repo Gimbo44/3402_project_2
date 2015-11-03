@@ -642,7 +642,7 @@ void assemble ( double adiag[], double aleft[], double arite[], double f[],
                 }
             }
         }
-    }
+    
     return;
 }
 /******************************************************************************/
