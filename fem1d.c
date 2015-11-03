@@ -24,7 +24,7 @@ void phi ( int il, double x, double *phii, double *phiix, double xleft,
            double xrite );
 double pp ( double x );
 void prsys ( double adiag[], double aleft[], double arite[], double f[],
-             int nu );
+             int nu ,int offset , int chunksize);
 double qq ( double x );
 void solve ( double adiag[], double aleft[], double arite[], double f[],
              int nu );
@@ -274,6 +274,17 @@ int main ( int argc, char *argv[]  )
    * Results:
    * Greatest performance gains are when the number of processes are greater than 2 and when nsub was greater than
    * 10,000
+   *
+   *
+   * Version 3.0
+   * ___________________________
+   * This version is theoretically the very last version for the project. After reviewing all the data from all versions,
+   * code was either include or not included depending on how well it improved the run-time. When the code was included,
+   * the results were reviewed to see when it was best to use and when it was best not to use openmp and openmpi. Triggers
+   * have been placed to ensure the most optimized time is achieved.
+   *
+   * Results:
+   *
    * ===================================================================================================================
    */
 
@@ -312,27 +323,35 @@ int main ( int argc, char *argv[]  )
 * Version: 1.2
 * ___________________________
 * Another ser of chunksize/offset variables were created to handle the NU iterations
+*
+*
+*
+  Version: 3.0
+* ___________________________
+* The chunksize/offset variables for the nu variable have been uncommented as version 1.3 will be included due to its
+* speed improvement at high nsub values.
 * ===================================================================================================================
 */
-    //int chunksize_nu = (nu/numtasks);
-    //int offset_nu = (int)(chunksize_nu*taskid);
-0p-
+    int chunksize_nu = (nu/numtasks);
+    int offset_nu = (int)(chunksize_nu*taskid);
 
     if(taskid != MASTER) {
         if(taskid+1 == numtasks){
             // This is the current code mechanism, if the current process is the last simply make the end put the value of NSUB.
-            geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, NSUB);
-            assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, NSUB);
+            geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, NSUB,numtasks);
+            assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, NSUB,numtasks);
+            prsys(local_adiag, local_aleft, local_arite, local_f, nu,offset_nu,nu,numtasks);
         }else{
             geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize + offset);
-            assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize + offset);
+            assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize + offset,numtasks);
+            prsys(local_adiag, local_aleft, local_arite, local_f, nu,offset_nu,chunksize_nu+offset_nu,numtasks);
 
         }
 
     }else{
-        geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize);
-        assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize);
-
+        geometry(local_h,ibc,local_indx, NL,node, NSUB,&nu, xl, local_xn, local_xquad, xr, offset, chunksize,numtasks);
+        assemble(local_adiag, local_aleft, local_arite, local_f, local_h, local_indx, NL, node, nu, nquad,NSUB, ul, ur, local_xn, local_xquad,offset, chunksize,numtasks);
+        prsys(local_adiag, local_aleft, local_arite, local_f, nu,offset_nu,chunksize_nu+offset_nu,numtasks);
     }
 
 /*
@@ -369,8 +388,6 @@ int main ( int argc, char *argv[]  )
 
 
     if(taskid == MASTER) {
-
-        prsys(adiag, aleft, arite, f, nu);
 /*
 
   Solve the linear system.
@@ -1024,7 +1041,8 @@ double pp ( double x )
 /******************************************************************************/
 
 void prsys ( double adiag[], double aleft[], double arite[], double f[],
-             int nu )
+             int nu ,int offset , int chunksize, int numproc)
+
 
 /******************************************************************************/
 //printf ( "\n" );
@@ -1054,6 +1072,12 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
  * Results:
  * As expected, only achieved performance improvements when nsub is greater than 10,000.
  * Performance seems to only increase as the number of processes increase.
+ *
+ * Version: 3.0
+* ___________________________
+* For the final version, triggers were implemented into prsys to ensure it only "fires" when the conditions allow for the
+ * function to provide the most performance improvements. In the case of prsys, its when the number of processes is greater
+ * than or equal to 6 and when nu >= 10,000,000. This version combines version 1.3 and 2.3.
 * ===================================================================================================================
 */
 /*
@@ -1103,16 +1127,16 @@ void prsys ( double adiag[], double aleft[], double arite[], double f[],
     //printf ( "\n" );
 
     if((nu+1) % 2 == 0){
-#pragma omp parallel for
-        for ( i = 0; i < nu; i+=2 )
+#pragma omp parallel for if ( nu >= 10000000 && numproc >= 6)
+        for ( i = offset; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 2, aleft[i+1], adiag[i+1], arite[i+1], f[i+1] );
         }
     }
     else{
-#pragma omp parallel for
-        for ( i = 1; i < nu; i+=2 )
+#pragma omp parallel for if ( nu >= 10000000 && numproc >= 6)
+        for ( i = offset+1; i < chunksize; i+=2 )
         {
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i, aleft[i-1], adiag[i-1], arite[i-1], f[i-1] );
             //printf ("  %8d  %14f  %14f  %14f  %14f\n", i + 1, aleft[i], adiag[i], arite[i], f[i] );
